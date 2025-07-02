@@ -8,10 +8,6 @@ interface InspirationData {
     foods_to_try: string[];
 }
 
-interface HomeProps {
-  addTrip: (newTrip: any) => Promise<string>; // Expects the addTrip function
-}
-
 const InspirationCard = ({ content, destination, dates, onStartPlanning, onGoBack }: { content: InspirationData, destination: string, dates: {start: string, end: string}, onStartPlanning: () => void, onGoBack: () => void }) => {
     return (
         <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-2xl animate-fade-in">
@@ -44,17 +40,11 @@ const InspirationCard = ({ content, destination, dates, onStartPlanning, onGoBac
             </div>
 
             <div className="mt-8 flex flex-col-reverse sm:flex-row gap-3">
-                <button
-                  onClick={onGoBack}
-                  className="w-full sm:w-auto flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-all"
-                >
+                <button onClick={onGoBack} className="w-full sm:w-auto flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-all">
                   <ArrowLeft className="w-5 h-5 inline-block mr-2" />
                   Search Again
                 </button>
-                <button
-                  onClick={onStartPlanning}
-                  className="w-full sm:w-auto flex-1 bg-vibrant-orange text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all"
-                >
+                <button onClick={onStartPlanning} className="w-full sm:w-auto flex-1 bg-vibrant-orange text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all">
                   Let's Do It! Start Planning
                 </button>
             </div>
@@ -63,7 +53,7 @@ const InspirationCard = ({ content, destination, dates, onStartPlanning, onGoBac
 };
 
 
-export default function Home({ addTrip }: HomeProps) {
+export default function Home({ addTrip }: { addTrip: (newTrip: any) => Promise<string> }) {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -78,25 +68,51 @@ export default function Home({ addTrip }: HomeProps) {
     setError('');
     setInspiration(null);
 
+    // 1. Use the OpenAI API key from your environment variables
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    // 2. Use the OpenAI API endpoint
+    const apiUrl = "https://api.openai.com/v1/chat/completions";
+
+    const prompt = `You are a helpful travel assistant. Your goal is to provide travel suggestions for a trip to ${destination} from ${startDate} to ${endDate}. Your entire response must be a single, valid JSON object. The JSON object must contain three keys: "welcome_note" (a string), "places_to_visit" (an array of 5 strings), and "foods_to_try" (an array of 5 strings). Do not include any text or formatting outside of the JSON object itself.`;
+
     try {
-        await new Promise(resolve => setTimeout(resolve, 2000)); 
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        // 3. Update the request body for the OpenAI API
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo", // Or another suitable model
+          messages: [
+            { role: "system", content: "You are a travel assistant that only responds with JSON." },
+            { role: "user", content: prompt }
+          ],
+          response_format: { type: "json_object" } // 4. Enable JSON mode
+        }),
+      });
 
-        const mockApiResponse: InspirationData = {
-            welcome_note: `An unforgettable journey to ${destination} awaits!`,
-            places_to_visit: ["Ganges River Ghats", "Sarnath", "Dashashwamedh Ghat", "Kashi Vishwanath Temple", "Ramnagar Fort"],
-            foods_to_try: ["Kachori Sabzi", "Chooda Matar", "Lassi", "Baati Chokha", "Thandai"]
-        };
-        
-        setInspiration(mockApiResponse);
+      if (!response.ok) {
+        const errorBody = await response.text();
+        throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+      }
 
-    } catch (err) {
-        setError('Sorry, we couldn\'t get inspiration for that destination. Please try again.');
+      const data = await response.json();
+      
+      // 5. Directly parse the JSON content from the response
+      const content = JSON.parse(data.choices[0].message.content);
+      
+      setInspiration(content);
+
+    } catch (err: any) {
+        console.error(err);
+        setError(`Sorry, we couldn't get inspiration. Error: ${err.message}`);
     } finally {
         setIsLoading(false);
     }
   };
   
-  // UPDATED: This function now creates the trip and navigates to the new planner page
   const handleStartPlanning = async () => {
     if (!inspiration) return;
 
@@ -104,9 +120,8 @@ export default function Home({ addTrip }: HomeProps) {
       name: destination,
       description: `Trip to ${destination} from ${startDate} to ${endDate}`,
       createdAt: new Date(),
-      participants: [], // We will add participants in the planner
+      participants: [],
       expenses: [],
-      // Storing the AI suggestions for later use
       inspiration: {
         places: inspiration.places_to_visit,
         foods: inspiration.foods_to_try,
@@ -115,7 +130,7 @@ export default function Home({ addTrip }: HomeProps) {
 
     try {
       const newTripId = await addTrip(newTrip);
-      navigate(`/trip-planner/${newTripId}`); // Navigate to the new page
+      navigate(`/trip-planner/${newTripId}`);
     } catch (error) {
       console.error("Failed to create trip:", error);
       setError("Could not create the trip. Please try again.");
