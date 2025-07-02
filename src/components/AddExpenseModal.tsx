@@ -1,219 +1,158 @@
-import React, { useState } from 'react';
-import { X, DollarSign, Users, Calendar, Tag } from 'lucide-react';
+import { useState } from 'react';
+import { X } from 'lucide-react';
 import { Trip, Expense } from '../types';
 
+// Define the structure for props
 interface AddExpenseModalProps {
   trip: Trip;
   onClose: () => void;
-  onAdd: (expense: Expense) => void;
+  onAdd: (newExpense: Expense) => void;
 }
 
-const expenseCategories = [
-  'Food & Dining',
-  'Transportation',
-  'Accommodation',
-  'Entertainment',
-  'Shopping',
-  'Utilities',
-  'Other'
-];
-
 export default function AddExpenseModal({ trip, onClose, onAdd }: AddExpenseModalProps) {
+  // State for the form fields
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [paidBy, setPaidBy] = useState(trip.participants[0]?.id || '');
-  const [category, setCategory] = useState(expenseCategories[0]);
-  const [splitBetween, setSplitBetween] = useState<string[]>(trip.participants.map(p => p.id));
+  
+  // State to hold the IDs of participants included in the split
+  const [splitBetween, setSplitBetween] = useState<string[]>(
+    trip.participants.map((p) => p.id) // Default to everyone being selected
+  );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!description.trim() || !amount || !paidBy || splitBetween.length === 0) {
-      return;
-    }
-
-    const expense: Expense = {
-      id: Date.now().toString(),
-      description: description.trim(),
-      amount: parseFloat(amount),
-      paidBy,
-      splitBetween,
-      category,
-      date: new Date(),
-      tripId: trip.id
-    };
-
-    onAdd(expense);
-  };
-
-  const handleParticipantToggle = (participantId: string) => {
+  const handleSplitChange = (participantId: string) => {
     setSplitBetween(prev => 
       prev.includes(participantId)
-        ? prev.filter(id => id !== participantId)
-        : [...prev, participantId]
+        ? prev.filter(id => id !== participantId) // Uncheck: remove from array
+        : [...prev, participantId] // Check: add to array
     );
   };
 
-  const splitAmount = parseFloat(amount) / splitBetween.length || 0;
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate that at least one person is selected for the split
+    if (splitBetween.length === 0) {
+      alert('Please select at least one person to split the expense with.');
+      return;
+    }
+    
+    // Create the new expense object
+    const newExpense: Expense = {
+      id: `exp-${Date.now()}`,
+      tripId: trip.id,
+      description,
+      amount: parseFloat(amount) || 0,
+      date: new Date(),
+      paidBy,
+      splitBetween,
+      category: 'General', // You can enhance this later
+    };
+
+    onAdd(newExpense); // Pass the new expense back to TripDetail
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-slide-up">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold text-gray-900">Add Expense</h2>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-          >
-            <X className="w-5 h-5 text-gray-500" />
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl shadow-2xl p-8 m-4 w-full max-w-md">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-800">Add an Expense</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+            <X className="w-6 h-6" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange focus:border-soft-orange transition-colors"
-              placeholder="What did you spend on?"
-              required
-            />
-          </div>
-
-          {/* Amount */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Amount
-            </label>
-            <div className="relative">
-              <DollarSign className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            {/* Description */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
               <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange focus:border-soft-orange transition-colors"
-                placeholder="0.00"
+                type="text"
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-vibrant-orange"
+                placeholder="e.g., Dinner, Taxi fare"
                 required
               />
             </div>
-          </div>
 
-          {/* Category */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Category
-            </label>
-            <div className="relative">
-              <Tag className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange focus:border-soft-orange transition-colors appearance-none bg-white"
-              >
-                {expenseCategories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
+            {/* Amount */}
+            <div>
+              <label htmlFor="amount" className="block text-sm font-medium text-gray-700 mb-1">
+                Amount
+              </label>
+              <input
+                type="number"
+                id="amount"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-vibrant-orange"
+                placeholder="0.00"
+                required
+                step="0.01"
+              />
             </div>
-          </div>
 
-          {/* Paid By */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Paid by
-            </label>
-            <div className="relative">
-              <Users className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+            {/* Paid By */}
+            <div>
+              <label htmlFor="paidBy" className="block text-sm font-medium text-gray-700 mb-1">
+                Paid by
+              </label>
               <select
+                id="paidBy"
                 value={paidBy}
                 onChange={(e) => setPaidBy(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange focus:border-soft-orange transition-colors appearance-none bg-white"
-                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-vibrant-orange"
               >
-                {trip.participants.map(participant => (
-                  <option key={participant.id} value={participant.id}>
-                    {participant.name}
-                  </option>
+                {trip.participants.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* Split Between */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Split between
-            </label>
-            <div className="space-y-3">
-              {trip.participants.map(participant => {
-                const isSelected = splitBetween.includes(participant.id);
-                return (
-                  <div
-                    key={participant.id}
-                    className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-soft-orange bg-soft-orange bg-opacity-10'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                    onClick={() => handleParticipantToggle(participant.id)}
-                  >
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-vibrant-orange to-soft-orange flex items-center justify-center text-white text-sm font-medium mr-3">
-                        {participant.name.charAt(0)}
-                      </div>
-                      <span className="font-medium text-gray-900">{participant.name}</span>
-                    </div>
-                    <div className="text-right">
-                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                        isSelected ? 'border-soft-orange bg-soft-orange' : 'border-gray-300'
-                      }`}>
-                        {isSelected && (
-                          <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                      {isSelected && splitAmount > 0 && (
-                        <p className="text-xs text-soft-orange mt-1">
-                          ${splitAmount.toFixed(2)}
-                        </p>
-                      )}
-                    </div>
+            {/* Split Between */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Split between
+              </label>
+              <div className="space-y-2">
+                {trip.participants.map((p) => (
+                  <div key={p.id} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id={`split-${p.id}`}
+                      checked={splitBetween.includes(p.id)}
+                      onChange={() => handleSplitChange(p.id)}
+                      className="h-4 w-4 rounded border-gray-300 text-vibrant-orange focus:ring-vibrant-orange"
+                    />
+                    <label htmlFor={`split-${p.id}`} className="ml-3 text-sm text-gray-600">
+                      {p.name}
+                    </label>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Split Summary */}
-          {splitBetween.length > 0 && parseFloat(amount) > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">Each person pays:</span>
-                <span className="font-semibold text-vibrant-orange">
-                  ${splitAmount.toFixed(2)}
-                </span>
+                ))}
               </div>
             </div>
-          )}
+          </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={!description.trim() || !amount || splitBetween.length === 0}
-            className="w-full bg-vibrant-orange text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            Add Expense
-          </button>
+          <div className="mt-8 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 rounded-md text-gray-700 bg-gray-100 hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 rounded-md text-white bg-vibrant-orange hover:bg-opacity-90"
+            >
+              Add Expense
+            </button>
+          </div>
         </form>
       </div>
     </div>

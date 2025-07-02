@@ -1,19 +1,56 @@
-import React from 'react';
-import { Plus, MapPin, Users, Calendar, DollarSign } from 'lucide-react';
+import React, { useState } from 'react';
+import { Plus, MapPin, Users, Calendar, DollarSign, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { mockTrips } from '../data/mockData';
 import { formatCurrency } from '../utils/calculations';
+import AddTripModal from './AddTripModal';
 
-export default function Dashboard() {
+// --- NEW: Added Type Definitions to fix errors ---
+// Defines the shape of a participant in a trip
+interface Participant {
+  id: string;
+  name: string;
+}
+
+// Defines the shape of an expense
+interface Expense {
+  amount: number;
+}
+
+// Defines the shape of a single trip object
+interface Trip {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: Date;
+  participants: Participant[];
+  expenses: Expense[];
+}
+
+// --- UPDATED: Using the new Trip type ---
+interface DashboardProps {
+  trips: Trip[]; // Use the defined Trip type instead of any[]
+  addTrip: (newTrip: any) => Promise<void>; 
+  deleteTrip: (tripId: string) => Promise<void>;
+}
+
+export default function Dashboard({ trips, addTrip, deleteTrip }: DashboardProps) {
   const navigate = useNavigate();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleTripClick = (tripId: string) => {
     navigate(`/trip/${tripId}`);
   };
 
-  const handleCreateTrip = () => {
-    // In a real app, this would open a create trip modal
-    console.log('Create new trip');
+  const handleAddTrip = async (newTrip: any) => {
+    await addTrip(newTrip);
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteClick = async (e: React.MouseEvent, tripId: string) => {
+    e.stopPropagation();
+    if (window.confirm('Are you sure you want to delete this trip? This cannot be undone.')) {
+      await deleteTrip(tripId);
+    }
   };
 
   return (
@@ -37,7 +74,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-sm text-gray-600">Active Trips</p>
-                <p className="text-xl font-semibold text-gray-900">{mockTrips.length}</p>
+                <p className="text-xl font-semibold text-gray-900">{trips.length}</p>
               </div>
             </div>
           </div>
@@ -49,7 +86,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-gray-600">Total Expenses</p>
                 <p className="text-xl font-semibold text-gray-900">
-                  {formatCurrency(mockTrips.reduce((sum, trip) => 
+                  {formatCurrency(trips.reduce((sum, trip) => 
                     sum + trip.expenses.reduce((expSum, exp) => expSum + exp.amount, 0), 0
                   ))}
                 </p>
@@ -64,7 +101,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm text-gray-600">Trip Partners</p>
                 <p className="text-xl font-semibold text-gray-900">
-                  {new Set(mockTrips.flatMap(trip => trip.participants.map(p => p.id))).size}
+                  {new Set(trips.flatMap(trip => trip.participants.map(p => p.id))).size}
                 </p>
               </div>
             </div>
@@ -73,14 +110,22 @@ export default function Dashboard() {
 
         {/* Trips List */}
         <div className="space-y-4">
-          {mockTrips.map((trip, index) => (
+          {trips.map((trip, index) => (
             <div
               key={trip.id}
               onClick={() => handleTripClick(trip.id)}
-              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-soft-orange transition-all cursor-pointer animate-slide-up"
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-soft-orange transition-all cursor-pointer animate-slide-up relative"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className="flex items-center justify-between mb-4">
+              <button
+                onClick={(e) => handleDeleteClick(e, trip.id)}
+                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                aria-label="Delete trip"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center justify-between mb-4 pr-8">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-1">
                     {trip.name}
@@ -103,7 +148,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex items-center">
                     <Calendar className="w-4 h-4 mr-1" />
-                    <span>{trip.createdAt.toLocaleDateString()}</span>
+                    <span>{new Date(trip.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
                 <div className="flex items-center">
@@ -112,10 +157,9 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Participants avatars */}
               <div className="flex items-center mt-4 pt-4 border-t border-gray-100">
                 <div className="flex -space-x-2">
-                  {trip.participants.slice(0, 4).map((participant, i) => (
+                  {trip.participants.slice(0, 4).map((participant) => (
                     <div
                       key={participant.id}
                       className="w-8 h-8 rounded-full bg-gradient-to-br from-vibrant-orange to-soft-orange flex items-center justify-center text-white text-xs font-medium border-2 border-white"
@@ -130,21 +174,20 @@ export default function Dashboard() {
                   )}
                 </div>
                 <span className="ml-3 text-sm text-gray-600">
-                  {trip.participants.map(p => p.name.split(' ')[0]).join(', ')}
+                  {trip.participants.map((p) => p.name.split(' ')[0]).join(', ')}
                 </span>
               </div>
             </div>
           ))}
         </div>
 
-        {/* Empty state for when no trips exist */}
-        {mockTrips.length === 0 && (
+        {trips.length === 0 && (
           <div className="text-center py-12">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No trips yet</h3>
             <p className="text-gray-600 mb-6">Create your first trip to start splitting expenses</p>
             <button
-              onClick={handleCreateTrip}
+              onClick={() => setIsModalOpen(true)}
               className="bg-vibrant-orange text-white px-6 py-3 rounded-lg font-medium hover:bg-opacity-90 transition-all"
             >
               Create Your First Trip
@@ -153,13 +196,16 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Floating Action Button */}
-      <button
-        onClick={handleCreateTrip}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-vibrant-orange text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all animate-bounce-gentle flex items-center justify-center"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
+      {trips.length > 0 && (
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="fixed bottom-6 right-6 w-14 h-14 bg-vibrant-orange text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+      )}
+
+      {isModalOpen && <AddTripModal onClose={() => setIsModalOpen(false)} onAdd={handleAddTrip} />}
     </div>
   );
 }

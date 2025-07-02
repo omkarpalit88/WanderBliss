@@ -1,0 +1,194 @@
+import { useState } from 'react';
+import { Globe, Wand2, Loader, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+interface InspirationData {
+    welcome_note: string;
+    places_to_visit: string[];
+    foods_to_try: string[];
+}
+
+interface HomeProps {
+  addTrip: (newTrip: any) => Promise<string>; // Expects the addTrip function
+}
+
+const InspirationCard = ({ content, destination, dates, onStartPlanning, onGoBack }: { content: InspirationData, destination: string, dates: {start: string, end: string}, onStartPlanning: () => void, onGoBack: () => void }) => {
+    return (
+        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-2xl animate-fade-in">
+            <h2 className="text-3xl font-bold text-muted-teal mb-2">{content.welcome_note}</h2>
+            <p className="text-gray-600 mb-6">Your trip to {destination} from {dates.start} to {dates.end}</p>
+            
+            <div className="grid md:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <h3 className="font-semibold text-lg text-gray-800 mb-3">Top Places to Visit</h3>
+                    <ul className="space-y-2">
+                        {content.places_to_visit.map((place: string, index: number) => (
+                            <li key={index} className="flex items-center text-gray-700">
+                                <Globe className="w-4 h-4 mr-3 text-vibrant-orange" />
+                                {place}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <div>
+                    <h3 className="font-semibold text-lg text-gray-800 mb-3">Must-Try Foods</h3>
+                    <ul className="space-y-2">
+                        {content.foods_to_try.map((food: string, index: number) => (
+                            <li key={index} className="flex items-center text-gray-700">
+                                <Wand2 className="w-4 h-4 mr-3 text-soft-orange" />
+                                {food}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse sm:flex-row gap-3">
+                <button
+                  onClick={onGoBack}
+                  className="w-full sm:w-auto flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-all"
+                >
+                  <ArrowLeft className="w-5 h-5 inline-block mr-2" />
+                  Search Again
+                </button>
+                <button
+                  onClick={onStartPlanning}
+                  className="w-full sm:w-auto flex-1 bg-vibrant-orange text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all"
+                >
+                  Let's Do It! Start Planning
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+export default function Home({ addTrip }: HomeProps) {
+  const [destination, setDestination] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [inspiration, setInspiration] = useState<InspirationData | null>(null);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleGetInspiration = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setInspiration(null);
+
+    try {
+        await new Promise(resolve => setTimeout(resolve, 2000)); 
+
+        const mockApiResponse: InspirationData = {
+            welcome_note: `An unforgettable journey to ${destination} awaits!`,
+            places_to_visit: ["Ganges River Ghats", "Sarnath", "Dashashwamedh Ghat", "Kashi Vishwanath Temple", "Ramnagar Fort"],
+            foods_to_try: ["Kachori Sabzi", "Chooda Matar", "Lassi", "Baati Chokha", "Thandai"]
+        };
+        
+        setInspiration(mockApiResponse);
+
+    } catch (err) {
+        setError('Sorry, we couldn\'t get inspiration for that destination. Please try again.');
+    } finally {
+        setIsLoading(false);
+    }
+  };
+  
+  // UPDATED: This function now creates the trip and navigates to the new planner page
+  const handleStartPlanning = async () => {
+    if (!inspiration) return;
+
+    const newTrip = {
+      name: destination,
+      description: `Trip to ${destination} from ${startDate} to ${endDate}`,
+      createdAt: new Date(),
+      participants: [], // We will add participants in the planner
+      expenses: [],
+      // Storing the AI suggestions for later use
+      inspiration: {
+        places: inspiration.places_to_visit,
+        foods: inspiration.foods_to_try,
+      }
+    };
+
+    try {
+      const newTripId = await addTrip(newTrip);
+      navigate(`/trip-planner/${newTripId}`); // Navigate to the new page
+    } catch (error) {
+      console.error("Failed to create trip:", error);
+      setError("Could not create the trip. Please try again.");
+    }
+  };
+  
+  const handleGoBack = () => {
+    setInspiration(null);
+    setDestination('');
+    setStartDate('');
+    setEndDate('');
+  };
+
+  return (
+    <div className="min-h-screen bg-off-white flex items-center justify-center p-4">
+        {!inspiration ? (
+            <div className="w-full max-w-md">
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl font-bold text-muted-teal mb-2">Where to next?</h1>
+                    <p className="text-gray-600">Tell us your dream destination to get started.</p>
+                </div>
+                <form onSubmit={handleGetInspiration} className="space-y-4 bg-white p-8 rounded-2xl shadow-lg">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
+                        <div className="relative">
+                            <Globe className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
+                            <input
+                                type="text" value={destination} onChange={(e) => setDestination(e.target.value)}
+                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange"
+                                placeholder="e.g., Varanasi" required
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange" required
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange" required
+                            />
+                        </div>
+                    </div>
+                    
+                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                    
+                    <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-vibrant-orange text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all flex items-center justify-center disabled:bg-opacity-50"
+                    >
+                        {isLoading ? (
+                            <Loader className="animate-spin w-5 h-5 mr-2" />
+                        ) : (
+                            <Wand2 className="w-5 h-5 mr-2" />
+                        )}
+                        {isLoading ? 'Conjuring Ideas...' : 'Get Inspired'}
+                    </button>
+                </form>
+            </div>
+        ) : (
+            <InspirationCard 
+                content={inspiration} 
+                destination={destination}
+                dates={{start: startDate, end: endDate}}
+                onStartPlanning={handleStartPlanning}
+                onGoBack={handleGoBack}
+            />
+        )}
+    </div>
+  );
+}
