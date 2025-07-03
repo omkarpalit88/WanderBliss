@@ -123,9 +123,19 @@ function App() {
 
   const updateTrip = useCallback(async (updatedTrip: Trip) => {
     const { id, ...tripData } = updatedTrip;
+    
+    // Map frontend field names to database column names
+    const dbTripData = {
+      ...tripData,
+      travel_legs: tripData.travelLegs, // Map travelLegs to travel_legs
+    };
+    
+    // Remove the frontend field name to avoid conflicts
+    delete (dbTripData as any).travelLegs;
+    
     const { error } = await supabase
       .from('trips')
-      .update(tripData)
+      .update(dbTripData)
       .eq('id', id);
 
     if (error) {
