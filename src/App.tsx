@@ -1,13 +1,13 @@
 // src/App.tsx
 import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from 'react-router-dom';
-import { supabase } from './supabase'; 
+import { supabase } from './supabase';
 import { Session } from '@supabase/supabase-js';
 
 import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
-import Home from './components/Home'; 
+import Home from './components/Home';
 import TripPlanner from './components/TripPlanner';
 import { Trip } from './types';
 
@@ -31,26 +31,26 @@ const AppContent = ({ session, trips, isLoading, addTrip, updateTrip, deleteTrip
 
   return (
     <Routes>
-      <Route 
-        path="/" 
-        element={!session ? <LandingPage onLoginClick={() => navigate('/login')} /> : <Navigate to="/dashboard" />} 
+      <Route
+        path="/"
+        element={!session ? <LandingPage onLoginClick={() => navigate('/login')} /> : <Navigate to="/dashboard" />}
       />
-      <Route 
-        path="/login" 
-        element={!session ? <Login /> : <Navigate to="/dashboard" />} 
+      <Route
+        path="/login"
+        element={!session ? <Login /> : <Navigate to="/dashboard" />}
       />
-      
-      <Route 
-        path="/dashboard" 
-        element={session ? <Dashboard trips={trips} deleteTrip={deleteTrip} /> : <Navigate to="/login" />} 
+
+      <Route
+        path="/dashboard"
+        element={session ? <Dashboard trips={trips} deleteTrip={deleteTrip} /> : <Navigate to="/login" />}
       />
-      <Route 
-        path="/create-trip" 
-        element={session ? <Home addTrip={addTrip} currentUserEmail={session.user.email} /> : <Navigate to="/login" />} 
+      <Route
+        path="/create-trip"
+        element={session ? <Home addTrip={addTrip} currentUserEmail={session.user.email} /> : <Navigate to="/login" />}
       />
-      <Route 
-        path="/trip-planner/:tripId" 
-        element={session ? <TripPlanner trips={trips} updateTrip={updateTrip} /> : <Navigate to="/login" />} 
+      <Route
+        path="/trip-planner/:tripId"
+        element={session ? <TripPlanner trips={trips} updateTrip={updateTrip} /> : <Navigate to="/login" />}
       />
       <Route path="*" element={<Navigate to={session ? "/dashboard" : "/"} />} />
     </Routes>
@@ -96,40 +96,31 @@ function App() {
   }, [session]);
 
   const addTrip = useCallback(async (newTripData: any): Promise<string> => {
-  if (!session) throw new Error("User is not authenticated");
+    if (!session) throw new Error("User is not authenticated");
 
-  const tripToAdd = {
-    ...newTripData,
-    user_id: session.user.id,
-  };
+    const tripToAdd = {
+      ...newTripData,
+      user_id: session.user.id,
+    };
 
-  // --- This is the line to check for in your browser's console ---
-  console.log("DEBUG: User ID being used for insert:", session.user.id); 
+    // --- This is the line to check for in your browser's console ---
+    console.log("DEBUG: User ID being used for insert:", session.user.id);
 
-  const { data, error } = await supabase
-    .from('trips')
-    .insert([tripToAdd])
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error adding trip:', error);
-    throw error;
-  }
-
-  setTrips(currentTrips => [data as Trip, ...currentTrips]);
-  return data.id;
-}, [session]);
+    const { data, error } = await supabase
+      .from('trips')
+      .insert([tripToAdd])
+      .select()
+      .single();
 
     if (error) {
       console.error('Error adding trip:', error);
       throw error;
     }
-    
+
     setTrips(currentTrips => [data as Trip, ...currentTrips]);
     return data.id;
-  } [session];
-  
+  }, [session]); // The dependency array for useCallback was misplaced and incorrect.
+
   const updateTrip = useCallback(async (updatedTrip: Trip) => {
     const { id, ...tripData } = updatedTrip;
     const { error } = await supabase
@@ -141,7 +132,7 @@ function App() {
       console.error('Error updating trip:', error);
       throw error;
     }
-    
+
     setTrips(currentTrips => currentTrips.map(trip => trip.id === id ? updatedTrip : trip));
   }, []);
 
@@ -162,7 +153,7 @@ function App() {
   return (
     <Router>
       <div className="App">
-        <AppContent 
+        <AppContent
           session={session}
           trips={trips}
           isLoading={isLoading}
