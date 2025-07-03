@@ -1,8 +1,13 @@
-  // src/supabase.ts
-  import { createClient } from '@supabase/supabase-js'
+    // src/supabase.ts
+    import { createClient } from '@supabase/supabase-js'
 
-  // Replace with your actual Supabase Project URL and Anon Key
-  const supabaseUrl = 'https://qnqukxfchilujalwfrvx.supabase.co'
-  const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFucXVreGZjaGlsdWphbHdmcnZ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTE1MzIwNzMsImV4cCI6MjA2NzEwODA3M30.HORQgyVrl6O4QswWhsrgxbqnfi2LDIlMe7a59fT5xvQ'
+    // Read the variables from the environment
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-  export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+    // Check if the variables are set
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error("Supabase URL and Anon Key must be defined in the environment variables.");
+    }
+
+    export const supabase = createClient(supabaseUrl, supabaseAnonKey)
