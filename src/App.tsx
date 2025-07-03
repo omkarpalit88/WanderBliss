@@ -96,18 +96,23 @@ function App() {
   }, [session]);
 
   const addTrip = useCallback(async (newTripData: any): Promise<string> => {
-    if (!session) throw new Error("User is not authenticated");
+  if (!session) throw new Error("User is not authenticated");
 
-    const tripToAdd = {
-      ...newTripData,
-      user_id: session.user.id,
-    };
+  const tripToAdd = {
+    ...newTripData,
+    user_id: session.user.id,
+  };
 
-    const { data, error } = await supabase
-      .from('trips')
-      .insert([tripToAdd])
-      .select()
-      .single();
+  // --- This is the line to check for in your browser's console ---
+  console.log("DEBUG: User ID being used for insert:", session.user.id); 
+
+  const { data, error } = await supabase
+    .from('trips')
+    .insert([tripToAdd])
+    .select()
+    .single();
+  // ... rest of the function
+}, [session]);
 
     if (error) {
       console.error('Error adding trip:', error);
