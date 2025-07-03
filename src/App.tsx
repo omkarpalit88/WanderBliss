@@ -128,7 +128,7 @@ function App() {
     
     setTrips(currentTrips => [data as Trip, ...currentTrips]);
     return data.id;
-  } [session];
+  } [session]);
   
   const updateTrip = useCallback(async (updatedTrip: Trip) => {
     const { id, ...tripData } = updatedTrip;
