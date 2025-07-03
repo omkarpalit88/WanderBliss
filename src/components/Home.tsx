@@ -58,7 +58,7 @@ const Home: React.FC<HomeProps> = ({ addTrip }) => {
 };
 
     try {
-      const newTripId = await addTrip(newTrip);
+      const newTripId = await addTrip(newTripData);
       navigate(`/trip-planner/${newTripId}`);
     } catch (err: any) {
       console.error("Failed to create trip:", err);
