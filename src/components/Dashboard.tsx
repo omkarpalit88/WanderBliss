@@ -1,211 +1,146 @@
-import React, { useState } from 'react';
-import { Plus, MapPin, Users, Calendar, DollarSign, Trash2 } from 'lucide-react';
+// src/components/Dashboard.tsx
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { formatCurrency } from '../utils/calculations';
-import AddTripModal from './AddTripModal';
+import { Plus, ChevronRight, Sun, Trash2, UserCircle, LogOut } from 'lucide-react';
+import { Trip } from '../types';
 
-// --- NEW: Added Type Definitions to fix errors ---
-// Defines the shape of a participant in a trip
-interface Participant {
-  id: string;
-  name: string;
-}
-
-// Defines the shape of an expense
-interface Expense {
-  amount: number;
-}
-
-// Defines the shape of a single trip object
-interface Trip {
-  id: string;
-  name: string;
-  description: string;
-  createdAt: Date;
-  participants: Participant[];
-  expenses: Expense[];
-}
-
-// --- UPDATED: Using the new Trip type ---
 interface DashboardProps {
-  trips: Trip[]; // Use the defined Trip type instead of any[]
-  addTrip: (newTrip: any) => Promise<void>; 
+  trips: Trip[];
   deleteTrip: (tripId: string) => Promise<void>;
 }
 
-export default function Dashboard({ trips, addTrip, deleteTrip }: DashboardProps) {
-  const navigate = useNavigate();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+// --- MOCK DATA: In a real app, this would come from your auth context ---
+const mockUser = {
+  name: 'Omi',
+  // You can add an avatar URL here if you have one
+  // avatarUrl: 'https://...
+};
 
-  const handleTripClick = (tripId: string) => {
-    navigate(`/trip/${tripId}`);
+const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
+  const navigate = useNavigate();
+
+  const handleCreateTrip = () => {
+    navigate('/create-trip');
   };
 
-  const handleAddTrip = async (newTrip: any) => {
-    await addTrip(newTrip);
-    setIsModalOpen(false);
+  const handleViewTrip = (tripId: string) => {
+    navigate(`/trip-planner/${tripId}`);
+  };
+  
+  const handleLogout = () => {
+    // In a real app, you would call your Firebase signOut function here
+    console.log("Logout clicked");
+    // navigate('/login');
   };
 
   const handleDeleteClick = async (e: React.MouseEvent, tripId: string) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this trip? This cannot be undone.')) {
-      await deleteTrip(tripId);
+    if (window.confirm('Are you sure you want to permanently delete this trip?')) {
+      try {
+        await deleteTrip(tripId);
+      } catch (error) {
+        console.error("Failed to delete trip:", error);
+        alert("Could not delete the trip. Please try again.");
+      }
     }
   };
 
-  return (
-    <div className="min-h-screen bg-off-white">
-      {/* Header */}
-      <div className="bg-muted-teal text-white px-4 py-6 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold mb-2">My Trips</h1>
-          <p className="text-blue-100">Manage and track your shared expenses</p>
-        </div>
-      </div>
+  const colors = {
+    brightYellow: '#FFD43A',
+    sunsetOrange: '#FF5841',
+    white: '#FFFFFF',
+    darkText: '#2D3748',
+    lightGrayBg: '#F9FAFB',
+  };
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto p-4">
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 mt-6">
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center">
-              <div className="bg-vibrant-orange bg-opacity-10 rounded-full p-2 mr-3">
-                <MapPin className="w-5 h-5 text-vibrant-orange" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Active Trips</p>
-                <p className="text-xl font-semibold text-gray-900">{trips.length}</p>
-              </div>
+  return (
+    <div style={{ backgroundColor: colors.lightGrayBg }} className="min-h-screen">
+      
+      {/* --- NEW: Branded Header with User Info --- */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          {/* App Logo/Name */}
+          <h1 className="text-2xl font-bold" style={{ color: colors.sunsetOrange }}>
+            WanderBliss
+          </h1>
+
+          {/* User Account Section */}
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="font-semibold" style={{color: colors.darkText}}>Welcome, {mockUser.name}!</p>
             </div>
+            <UserCircle size={32} className="text-gray-400" />
+            <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600" aria-label="Logout">
+              <LogOut size={20} />
+            </button>
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center">
-              <div className="bg-soft-orange bg-opacity-20 rounded-full p-2 mr-3">
-                <DollarSign className="w-5 h-5 text-soft-orange" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Expenses</p>
-                <p className="text-xl font-semibold text-gray-900">
-                  {formatCurrency(trips.reduce((sum, trip) => 
-                    sum + trip.expenses.reduce((expSum, exp) => expSum + exp.amount, 0), 0
-                  ))}
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="flex items-center">
-              <div className="bg-muted-teal bg-opacity-10 rounded-full p-2 mr-3">
-                <Users className="w-5 h-5 text-muted-teal" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Trip Partners</p>
-                <p className="text-xl font-semibold text-gray-900">
-                  {new Set(trips.flatMap(trip => trip.participants.map(p => p.id))).size}
-                </p>
-              </div>
-            </div>
-          </div>
+        </div>
+      </header>
+      
+      {/* Main Content Area */}
+      <main className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* Page Title and Action Button */}
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-3xl font-bold" style={{ color: colors.darkText }}>
+            Your Trips
+          </h2>
+          <button
+            onClick={handleCreateTrip}
+            className="font-semibold py-2 px-5 rounded-lg transition-transform transform hover:scale-105 flex items-center gap-2"
+            style={{ backgroundColor: colors.sunsetOrange, color: colors.white }}
+          >
+            <Plus size={20} />
+            <span className="hidden sm:inline">Create New Trip</span>
+          </button>
         </div>
 
         {/* Trips List */}
-        <div className="space-y-4">
-          {trips.map((trip, index) => (
-            <div
-              key={trip.id}
-              onClick={() => handleTripClick(trip.id)}
-              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-soft-orange transition-all cursor-pointer animate-slide-up relative"
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
+        <div>
+          {trips.length === 0 ? (
+            <div className="text-center py-20 px-6 rounded-2xl" style={{ backgroundColor: colors.white }}>
+              <Sun size={48} className="mx-auto mb-4" style={{ color: colors.brightYellow }} />
+              <h2 className="text-2xl font-semibold mb-2">No Trips Yet!</h2>
+              <p className="text-gray-600 mb-6">Your next adventure is waiting. Create a trip to start planning.</p>
               <button
-                onClick={(e) => handleDeleteClick(e, trip.id)}
-                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                aria-label="Delete trip"
+                onClick={handleCreateTrip}
+                className="font-semibold py-2 px-5 rounded-lg transition-transform transform hover:scale-105"
+                style={{ backgroundColor: colors.sunsetOrange, color: colors.white }}
               >
-                <Trash2 className="w-5 h-5" />
+                Let's Go!
               </button>
-
-              <div className="flex items-center justify-between mb-4 pr-8">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                    {trip.name}
-                  </h3>
-                  <p className="text-gray-600 text-sm">{trip.description}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-500 mb-1">Total Spent</p>
-                  <p className="text-lg font-semibold text-vibrant-orange">
-                    {formatCurrency(trip.expenses.reduce((sum, exp) => sum + exp.amount, 0))}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-sm text-gray-500">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <Users className="w-4 h-4 mr-1" />
-                    <span>{trip.participants.length} people</span>
-                  </div>
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-1" />
-                    <span>{new Date(trip.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-                <div className="flex items-center">
-                  <DollarSign className="w-4 h-4 mr-1" />
-                  <span>{trip.expenses.length} expenses</span>
-                </div>
-              </div>
-
-              <div className="flex items-center mt-4 pt-4 border-t border-gray-100">
-                <div className="flex -space-x-2">
-                  {trip.participants.slice(0, 4).map((participant) => (
-                    <div
-                      key={participant.id}
-                      className="w-8 h-8 rounded-full bg-gradient-to-br from-vibrant-orange to-soft-orange flex items-center justify-center text-white text-xs font-medium border-2 border-white"
-                    >
-                      {participant.name.charAt(0)}
-                    </div>
-                  ))}
-                  {trip.participants.length > 4 && (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-medium border-2 border-white">
-                      +{trip.participants.length - 4}
-                    </div>
-                  )}
-                </div>
-                <span className="ml-3 text-sm text-gray-600">
-                  {trip.participants.map((p) => p.name.split(' ')[0]).join(', ')}
-                </span>
-              </div>
             </div>
-          ))}
+          ) : (
+            <div className="space-y-4">
+              {trips.map(trip => (
+                <div
+                  key={trip.id}
+                  onClick={() => handleViewTrip(trip.id)}
+                  className="bg-white p-5 rounded-xl shadow-sm hover:shadow-lg transition-all cursor-pointer flex justify-between items-center group"
+                >
+                  <div>
+                    <h3 className="text-xl font-semibold" style={{ color: colors.darkText }}>{trip.name}</h3>
+                    <p className="text-sm text-gray-500">
+                      Created on: {new Date(trip.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center">
+                    <button
+                      onClick={(e) => handleDeleteClick(e, trip.id)}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-opacity opacity-0 group-hover:opacity-100"
+                      aria-label="Delete trip"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    <ChevronRight size={24} className="text-gray-300 transition-transform group-hover:translate-x-1" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-
-        {trips.length === 0 && (
-          <div className="text-center py-12">
-            <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No trips yet</h3>
-            <p className="text-gray-600 mb-6">Create your first trip to start splitting expenses</p>
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="bg-vibrant-orange text-white px-6 py-3 rounded-lg font-medium hover:bg-opacity-90 transition-all"
-            >
-              Create Your First Trip
-            </button>
-          </div>
-        )}
-      </div>
-
-      {trips.length > 0 && (
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="fixed bottom-6 right-6 w-14 h-14 bg-vibrant-orange text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-      )}
-
-      {isModalOpen && <AddTripModal onClose={() => setIsModalOpen(false)} onAdd={handleAddTrip} />}
+      </main>
     </div>
   );
-}
+};
+
+export default Dashboard;

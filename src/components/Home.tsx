@@ -1,209 +1,145 @@
-import { useState } from 'react';
-import { Globe, Wand2, Loader, ArrowLeft } from 'lucide-react';
+// src/components/Home.tsx
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Globe, PlusCircle, ArrowLeft, UserCircle, LogOut } from 'lucide-react';
 
-interface InspirationData {
-    welcome_note: string;
-    places_to_visit: string[];
-    foods_to_try: string[];
-}
-
-const InspirationCard = ({ content, destination, dates, onStartPlanning, onGoBack }: { content: InspirationData, destination: string, dates: {start: string, end: string}, onStartPlanning: () => void, onGoBack: () => void }) => {
-    return (
-        <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-2xl animate-fade-in">
-            <h2 className="text-3xl font-bold text-muted-teal mb-2">{content.welcome_note}</h2>
-            <p className="text-gray-600 mb-6">Your trip to {destination} from {dates.start} to {dates.end}</p>
-            
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-                <div>
-                    <h3 className="font-semibold text-lg text-gray-800 mb-3">Top Places to Visit</h3>
-                    <ul className="space-y-2">
-                        {content.places_to_visit.map((place: string, index: number) => (
-                            <li key={index} className="flex items-center text-gray-700">
-                                <Globe className="w-4 h-4 mr-3 text-vibrant-orange" />
-                                {place}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-                <div>
-                    <h3 className="font-semibold text-lg text-gray-800 mb-3">Must-Try Foods</h3>
-                    <ul className="space-y-2">
-                        {content.foods_to_try.map((food: string, index: number) => (
-                            <li key={index} className="flex items-center text-gray-700">
-                                <Wand2 className="w-4 h-4 mr-3 text-soft-orange" />
-                                {food}
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-            </div>
-
-            <div className="mt-8 flex flex-col-reverse sm:flex-row gap-3">
-                <button onClick={onGoBack} className="w-full sm:w-auto flex-1 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-all">
-                  <ArrowLeft className="w-5 h-5 inline-block mr-2" />
-                  Search Again
-                </button>
-                <button onClick={onStartPlanning} className="w-full sm:w-auto flex-1 bg-vibrant-orange text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all">
-                  Let's Do It! Start Planning
-                </button>
-            </div>
-        </div>
-    );
+// --- MOCK DATA: In a real app, this would come from your auth context ---
+const mockUser = {
+  name: 'Omi',
 };
 
+interface HomeProps {
+  addTrip: (newTrip: any) => Promise<string>;
+}
 
-export default function Home({ addTrip }: { addTrip: (newTrip: any) => Promise<string> }) {
+const Home: React.FC<HomeProps> = ({ addTrip }) => {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [inspiration, setInspiration] = useState<InspirationData | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleGetInspiration = async (e: React.FormEvent) => {
+  const handleCreateTrip = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setIsCreating(true);
     setError('');
-    setInspiration(null);
-
-    // 1. Use the OpenAI API key from your environment variables
-    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
-    // 2. Use the OpenAI API endpoint
-    const apiUrl = "https://api.openai.com/v1/chat/completions";
-
-    const prompt = `You are a helpful travel assistant. Your goal is to provide travel suggestions for a trip to ${destination} from ${startDate} to ${endDate}. Your entire response must be a single, valid JSON object. The JSON object must contain three keys: "welcome_note" (a string), "places_to_visit" (an array of 5 strings), and "foods_to_try" (an array of 5 strings). Do not include any text or formatting outside of the JSON object itself.`;
-
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
-        },
-        // 3. Update the request body for the OpenAI API
-        body: JSON.stringify({
-          model: "gpt-3.5-turbo", // Or another suitable model
-          messages: [
-            { role: "system", content: "You are a travel assistant that only responds with JSON." },
-            { role: "user", content: prompt }
-          ],
-          response_format: { type: "json_object" } // 4. Enable JSON mode
-        }),
-      });
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
-      }
-
-      const data = await response.json();
-      
-      // 5. Directly parse the JSON content from the response
-      const content = JSON.parse(data.choices[0].message.content);
-      
-      setInspiration(content);
-
-    } catch (err: any) {
-        console.error(err);
-        setError(`Sorry, we couldn't get inspiration. Error: ${err.message}`);
-    } finally {
-        setIsLoading(false);
-    }
-  };
-  
-  const handleStartPlanning = async () => {
-    if (!inspiration) return;
 
     const newTrip = {
       name: destination,
-      description: `Trip to ${destination} from ${startDate} to ${endDate}`,
+      description: `A trip to ${destination}`, // A default description
+      startDate: startDate,
+      endDate: endDate,
       createdAt: new Date(),
       participants: [],
       expenses: [],
       inspiration: {
-        places: inspiration.places_to_visit,
-        foods: inspiration.foods_to_try,
+        places: [],
+        foods: [],
+        selectedPlaces: [],
+        selectedFoods: [],
       }
     };
 
     try {
       const newTripId = await addTrip(newTrip);
       navigate(`/trip-planner/${newTripId}`);
-    } catch (error) {
-      console.error("Failed to create trip:", error);
+    } catch (err: any) {
+      console.error("Failed to create trip:", err);
       setError("Could not create the trip. Please try again.");
+      setIsCreating(false);
     }
   };
   
-  const handleGoBack = () => {
-    setInspiration(null);
-    setDestination('');
-    setStartDate('');
-    setEndDate('');
+  const handleLogout = () => {
+    console.log("Logout clicked");
+  };
+
+  const colors = {
+    sunsetOrange: '#FF5841',
+    white: '#FFFFFF',
+    darkText: '#2D3748',
+    lightGrayBg: '#F9FAFB',
   };
 
   return (
-    <div className="min-h-screen bg-off-white flex items-center justify-center p-4">
-        {!inspiration ? (
-            <div className="w-full max-w-md">
-                <div className="text-center mb-8">
-                    <h1 className="text-4xl font-bold text-muted-teal mb-2">Where to next?</h1>
-                    <p className="text-gray-600">Tell us your dream destination to get started.</p>
-                </div>
-                <form onSubmit={handleGetInspiration} className="space-y-4 bg-white p-8 rounded-2xl shadow-lg">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
-                        <div className="relative">
-                            <Globe className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                            <input
-                                type="text" value={destination} onChange={(e) => setDestination(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange"
-                                placeholder="e.g., Varanasi" required
-                            />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange" required
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-soft-orange" required
-                            />
-                        </div>
-                    </div>
-                    
-                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                    
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-vibrant-orange text-white py-3 px-4 rounded-lg font-medium hover:bg-opacity-90 transition-all flex items-center justify-center disabled:bg-opacity-50"
-                    >
-                        {isLoading ? (
-                            <Loader className="animate-spin w-5 h-5 mr-2" />
-                        ) : (
-                            <Wand2 className="w-5 h-5 mr-2" />
-                        )}
-                        {isLoading ? 'Conjuring Ideas...' : 'Get Inspired'}
-                    </button>
-                </form>
+    <div style={{ backgroundColor: colors.lightGrayBg }} className="min-h-screen">
+      {/* --- NEW: Consistent Header --- */}
+      <header className="bg-white shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold" style={{ color: colors.sunsetOrange }}>
+            WanderBliss
+          </h1>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="font-semibold" style={{color: colors.darkText}}>Welcome, {mockUser.name}!</p>
             </div>
-        ) : (
-            <InspirationCard 
-                content={inspiration} 
-                destination={destination}
-                dates={{start: startDate, end: endDate}}
-                onStartPlanning={handleStartPlanning}
-                onGoBack={handleGoBack}
-            />
-        )}
+            <UserCircle size={32} className="text-gray-400" />
+            <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600" aria-label="Logout">
+              <LogOut size={20} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content Area */}
+      <main className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8">
+        {/* --- NEW: Back to Dashboard Link --- */}
+        <button onClick={() => navigate('/dashboard')} className="flex items-center text-sm text-gray-500 hover:text-gray-900 mb-6">
+            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+        </button>
+
+        <div className="w-full max-w-md mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold" style={{color: colors.darkText}}>Create a New Trip</h1>
+            <p className="text-gray-600">Where are you dreaming of going next?</p>
+          </div>
+          <form onSubmit={handleCreateTrip} className="space-y-4 bg-white p-8 rounded-2xl shadow-lg">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Destination</label>
+              <div className="relative">
+                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text" value={destination} onChange={(e) => setDestination(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2"
+                  style={{'--tw-ring-color': colors.sunsetOrange} as React.CSSProperties}
+                  placeholder="e.g., Varanasi" required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2" 
+                  style={{'--tw-ring-color': colors.sunsetOrange} as React.CSSProperties} required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2" 
+                  style={{'--tw-ring-color': colors.sunsetOrange} as React.CSSProperties} required
+                />
+              </div>
+            </div>
+            
+            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+            
+            <button
+              type="submit"
+              disabled={isCreating}
+              className="w-full text-white py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center disabled:bg-opacity-50"
+              style={{backgroundColor: colors.sunsetOrange}}
+            >
+              <PlusCircle className="w-5 h-5 mr-2" />
+              {isCreating ? 'Creating Trip...' : 'Start Planning'}
+            </button>
+          </form>
+        </div>
+      </main>
     </div>
   );
 }
+
+export default Home;
