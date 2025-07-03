@@ -111,8 +111,15 @@ function App() {
     .insert([tripToAdd])
     .select()
     .single();
-  // ... rest of the function
-[session]);
+
+  if (error) {
+    console.error('Error adding trip:', error);
+    throw error;
+  }
+
+  setTrips(currentTrips => [data as Trip, ...currentTrips]);
+  return data.id;
+}, [session]);
 
     if (error) {
       console.error('Error adding trip:', error);
