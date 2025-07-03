@@ -45,6 +45,18 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
     }
   };
 
+  const formatCreatedDate = (trip: any) => {
+    // Handle both database field name (created_at) and frontend field name (createdAt)
+    const dateValue = trip.created_at || trip.createdAt;
+    if (!dateValue) return 'Unknown date';
+    
+    try {
+      return new Date(dateValue).toLocaleDateString();
+    } catch (error) {
+      return 'Unknown date';
+    }
+  };
+
   const colors = {
     brightYellow: '#FFD43A',
     sunsetOrange: '#FF5841',
@@ -120,7 +132,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
                   <div>
                     <h3 className="text-xl font-semibold" style={{ color: colors.darkText }}>{trip.name}</h3>
                     <p className="text-sm text-gray-500">
-                      Created on: {new Date(trip.createdAt).toLocaleDateString()}
+                      Created on: {formatCreatedDate(trip)}
                     </p>
                   </div>
                   <div className="flex items-center">
