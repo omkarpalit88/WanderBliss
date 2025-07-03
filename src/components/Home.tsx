@@ -25,7 +25,7 @@ const Home: React.FC<HomeProps> = ({ addTrip }) => {
     setIsCreating(true);
     setError('');
 
-    const newTrip = {
+    {/*const newTrip = {
       name: destination,
       description: `A trip to ${destination}`, // A default description
       startDate: startDate,
@@ -37,9 +37,25 @@ const Home: React.FC<HomeProps> = ({ addTrip }) => {
         places: [],
         foods: [],
         selectedPlaces: [],
-        selectedFoods: [],
-      }
-    };
+        selectedFoods: [],*/}
+    const newTripData = { // You can keep the name 'newTrip' or change it to 'newTripData' as I did here.
+  name: destination,
+  description: `A trip to ${destination}`,
+  // --- IMPORTANT CHANGE: Use 'snake_case' to match Supabase database column names ---
+  start_date: startDate, // Changed from 'startDate' to 'start_date'
+  end_date: endDate,     // Changed from 'endDate' to 'end_date'
+  created_at: new Date().toISOString(), // Changed from 'createdAt' to 'created_at' and added .toISOString()
+
+  // Keep these exactly as they are. Supabase typically handles JSON/JSONB types for these.
+  participants: [],
+  expenses: [],
+  inspiration: {
+    places: [],
+    foods: [],
+    selectedPlaces: [],
+    selectedFoods: [],
+  }
+};
 
     try {
       const newTripId = await addTrip(newTrip);
