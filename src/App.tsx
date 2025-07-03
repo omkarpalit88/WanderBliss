@@ -112,7 +112,7 @@ function App() {
     .select()
     .single();
   // ... rest of the function
-}, [session]);
+[session]);
 
     if (error) {
       console.error('Error adding trip:', error);
