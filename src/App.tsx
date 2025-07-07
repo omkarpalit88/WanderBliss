@@ -170,12 +170,10 @@ function App() {
     const dbTripData = {
       ...tripData,
       travel_legs: tripData.travelLegs || tripData.travel_legs, // Handle both field names
-      todos: tripData.todos, // Add todos to database update
     };
     
     // Remove the frontend field names to avoid conflicts
     delete (dbTripData as any).travelLegs;
-    delete (dbTripData as any).travel_legs;
     
     // Add the correct database field name
     if (tripData.travelLegs) {
@@ -183,6 +181,8 @@ function App() {
     } else if (tripData.travel_legs) {
       dbTripData.travel_legs = tripData.travel_legs;
     }
+    
+    console.log('Updating trip with data:', dbTripData);
     
     const { error } = await supabase
       .from('trips')
@@ -194,6 +194,7 @@ function App() {
       throw error;
     }
 
+    console.log('Trip updated successfully');
     setTrips(currentTrips => currentTrips.map(trip => trip.id === id ? updatedTrip : trip));
   }, []);
 
