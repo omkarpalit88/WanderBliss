@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckSquare, Plane, Hotel, IndianRupee, Globe, Wand2, Plus, RefreshCw, Calendar, Edit, Save, Train, Car, BusFront, Trash2, Building2, Users2 } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Trip, ItineraryItem, TravelLeg, LodgingEntry, Expense, Settlement, User as UserType } from '../types';
+import { Trip, ItineraryItem, TravelLeg, LodgingEntry, Expense, Settlement, User as UserType, TodoItem } from '../types';
 import { debounce } from 'lodash';
 
 // --- The utility functions are defined directly in this file to resolve import errors. ---
@@ -156,6 +156,64 @@ const LodgingModal = ({ entry, onSave, onClose }: { entry: Partial<LodgingEntry>
     const handleSave = () => onSave(currentEntry as LodgingEntry);
     return <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"><div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg"><h2 className="text-2xl font-bold text-gray-800 mb-6">{entry.id ? 'Edit' : 'Add'} Lodging</h2><div className="space-y-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Guest(s)</label><input type="text" name="guestNames" value={currentEntry.guestNames || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Omi, Shagun" /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Hotel / Place Name</label><input type="text" name="placeName" value={currentEntry.placeName || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Taj Ganges" /></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input type="text" name="city" value={currentEntry.city || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Varanasi" /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Area</label><input type="text" name="area" value={currentEntry.area || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="e.g., Nadesar Palace Grounds" /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Check-in Date</label><input type="date" name="checkIn" value={currentEntry.checkIn || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Check-out Date</label><input type="date" name="checkOut" value={currentEntry.checkOut || ''} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg" /></div></div></div><div className="mt-8 flex justify-end gap-3"><button onClick={onClose} className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg">Cancel</button><button onClick={handleSave} style={{backgroundColor: colors.sunsetOrange}} className="text-white py-2 px-4 rounded-lg">Save Lodging</button></div></div></div>;
 };
+
+const TodoModal = ({ todo, onSave, onClose }: { todo: Partial<TodoItem>, onSave: (todo: TodoItem) => void, onClose: () => void }) => {
+  const [activity, setActivity] = useState(todo.activity || '');
+  const [remarks, setRemarks] = useState(todo.remarks || '');
+  
+  const handleSave = () => {
+    if (!activity.trim()) {
+      alert('Please enter an activity name.');
+      return;
+    }
+    
+    onSave({
+      id: todo.id || `todo-${Date.now()}`,
+      activity: activity.trim(),
+      completed: todo.completed || false,
+      remarks: remarks.trim(),
+      createdAt: todo.createdAt || new Date()
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-lg">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6">{todo.id ? 'Edit' : 'Add'} To-do Item</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Activity</label>
+            <input
+              type="text"
+              value={activity}
+              onChange={(e) => setActivity(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+              placeholder="e.g., Book hotel rooms, Purchase train tickets"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Remarks (Optional)</label>
+            <textarea
+              value={remarks}
+              onChange={(e) => setRemarks(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg h-24 resize-none"
+              placeholder="Add any notes or details about this task..."
+            />
+          </div>
+        </div>
+        <div className="mt-8 flex justify-end gap-3">
+          <button onClick={onClose} className="bg-gray-200 text-gray-800 py-2 px-4 rounded-lg">
+            Cancel
+          </button>
+          <button onClick={handleSave} style={{backgroundColor: colors.sunsetOrange}} className="text-white py-2 px-4 rounded-lg">
+            Save To-do
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const ChecklistItem = ({ item, isChecked, onToggle }: { item: string, isChecked: boolean, onToggle: () => void }) => {
   return <div onClick={onToggle} className={`flex items-center p-3 rounded-lg cursor-pointer transition-all ${isChecked ? 'font-medium' : 'hover:bg-gray-100'}`} style={{backgroundColor: isChecked ? colors.lightPurpleBg : colors.lightGrayBg}}><div className={`w-5 h-5 rounded mr-4 flex items-center justify-center border-2 transition-all ${isChecked ? 'border-transparent' : 'border-gray-300'}`} style={{backgroundColor: isChecked ? colors.pastelPurple : 'transparent'}}>{isChecked && <CheckSquare className="w-3 h-3 text-white" strokeWidth={3} />}</div><span>{item}</span></div>;
 };
@@ -163,7 +221,7 @@ const ChecklistItem = ({ item, isChecked, onToggle }: { item: string, isChecked:
 
 // --- Main TripPlanner Component ---
 interface TripPlannerProps { trips: Trip[]; updateTrip: (updatedTrip: Trip) => Promise<void>; }
-type TabType = 'checklist' | 'itinerary' | 'participants' | 'travel' | 'lodging' | 'expenses';
+type TabType = 'checklist' | 'itinerary' | 'participants' | 'travel' | 'lodging' | 'expenses' | 'todos';
 type ExpenseSubTabType = 'list' | 'balances' | 'settlements';
 
 export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
@@ -193,6 +251,9 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
   const [participants, setParticipants] = useState<UserType[]>([]);
   const [newParticipantName, setNewParticipantName] = useState('');
   const [newParticipantEmail, setNewParticipantEmail] = useState('');
+  const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [isTodoModalOpen, setIsTodoModalOpen] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Partial<TodoItem> | null>(null);
 
   const debouncedUpdate = useCallback(debounce((updatedTrip: Trip) => { updateTrip(updatedTrip); setSaveStatus('saved'); setTimeout(() => setSaveStatus('idle'), 2000); }, 1500), [updateTrip]);
   const triggerAutoSave = (updatedTrip: Trip) => { setSaveStatus('saving'); debouncedUpdate(updatedTrip); };
@@ -208,6 +269,7 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
       setLodgingEntries(trip.lodging || []);
       setExpenses(trip.expenses || []);
       setParticipants(trip.participants || []);
+      setTodos(trip.todos || []);
     }
   }, [trip]);
 
@@ -240,8 +302,11 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
   const formatDisplayDate = (dateString: string) => { if (!dateString) return 'N/A'; return new Date(dateString).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }); };
   const formatShortDate = (dateString: string) => { if (!dateString) return 'N/A'; return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); };
   const getUserName = (userId: string) => participants.find((p: UserType) => p.id === userId)?.name || 'Unknown';
+  const handleSaveTodo = (todo: TodoItem) => { if (!trip) return; const updatedTodos = todo.id && todos.find(t => t.id === todo.id) ? todos.map(t => t.id === todo.id ? todo : t) : [...todos, todo]; setTodos(updatedTodos); triggerAutoSave({ ...trip, todos: updatedTodos }); setIsTodoModalOpen(false); setEditingTodo(null); };
+  const handleToggleTodo = (todoId: string) => { if (!trip) return; const updatedTodos = todos.map(t => t.id === todoId ? { ...t, completed: !t.completed } : t); setTodos(updatedTodos); triggerAutoSave({ ...trip, todos: updatedTodos }); };
+  const handleDeleteTodo = (todoId: string) => { if (window.confirm('Are you sure?') && trip) { const updatedTodos = todos.filter(t => t.id !== todoId); setTodos(updatedTodos); triggerAutoSave({ ...trip, todos: updatedTodos }); } };
 
-  const tabs: { id: TabType; label: string; icon: React.ElementType }[] = [ { id: 'checklist', label: 'Checklist', icon: CheckSquare }, { id: 'itinerary', label: 'Itinerary', icon: Calendar }, { id: 'participants', label: 'Participants', icon: Users2 }, { id: 'travel', label: 'Travel', icon: Plane }, { id: 'lodging', label: 'Lodging', icon: Hotel }, { id: 'expenses', label: 'Expenses', icon: IndianRupee }, ];
+  const tabs: { id: TabType; label: string; icon: React.ElementType }[] = [ { id: 'checklist', label: 'Checklist', icon: CheckSquare }, { id: 'itinerary', label: 'Itinerary', icon: Calendar }, { id: 'participants', label: 'Participants', icon: Users2 }, { id: 'travel', label: 'Travel', icon: Plane }, { id: 'lodging', label: 'Lodging', icon: Hotel }, { id: 'expenses', label: 'Expenses', icon: IndianRupee }, { id: 'todos', label: 'To-dos', icon: ClipboardList }, ];
 
   if (!trip || !expenseSummary) { return <div className="min-h-screen flex items-center justify-center p-4" style={{backgroundColor: colors.lightGrayBg}}><p>Trip not found or error calculating summary.</p></div>; }
 
@@ -250,6 +315,7 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
       {isTravelModalOpen && editingLeg && <TravelLegModal leg={editingLeg} onSave={handleSaveTravelLeg} onClose={() => setIsTravelModalOpen(false)} />}
       {isLodgingModalOpen && editingLodging && <LodgingModal entry={editingLodging} onSave={handleSaveLodging} onClose={() => setIsLodgingModalOpen(false)} />}
       {isExpenseModalOpen && <ExpenseModal trip={trip} onSave={handleAddExpense} onClose={() => setIsExpenseModalOpen(false)} />}
+      {isTodoModalOpen && editingTodo && <TodoModal todo={editingTodo} onSave={handleSaveTodo} onClose={() => setIsTodoModalOpen(false)} />}
       
       <div className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-5xl mx-auto p-4">
@@ -277,6 +343,101 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
         {activeTab === 'lodging' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center"><div><h2 className="text-xl font-bold text-gray-800 mb-1">Accommodation</h2><p className="text-gray-600">Log each place you're staying at.</p></div><button onClick={() => { setEditingLodging({}); setIsLodgingModalOpen(true); }} className="flex items-center text-white py-2 px-4 rounded-lg font-medium" style={{backgroundColor: colors.sunsetOrange}}><Plus className="w-4 h-4 mr-2"/> Add Lodging</button></div><div className="space-y-4">{lodgingEntries.length === 0 ? <div className="text-center text-gray-500 py-12"><Hotel className="mx-auto w-12 h-12 text-gray-300" /><p className="mt-4">No lodging entries added yet.</p></div> : lodgingEntries.map(entry => (<div key={entry.id} className="bg-white p-6 rounded-xl shadow-sm border"><div className="flex justify-between items-start"><div className="flex items-center gap-4"><Building2 className="w-10 h-10 p-2 bg-gray-100 rounded-full" style={{color: colors.darkText}}/><div><p className="font-semibold text-gray-500 text-xs uppercase">Guests</p><p className="font-bold text-lg text-gray-800">{entry.guestNames}</p></div></div><div className="flex gap-2"><button onClick={() => { setEditingLodging(entry); setIsLodgingModalOpen(true); }} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4"/></button><button onClick={() => handleDeleteLodging(entry.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4"/></button></div></div><div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-3 gap-4 text-sm"><div><p className="font-semibold text-gray-500 text-xs uppercase">Place</p><p className="text-gray-800">{entry.placeName}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Location</p><p className="text-gray-800">{entry.area}, {entry.city}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Check-in</p><p className="text-gray-800">{formatShortDate(entry.checkIn)}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Check-out</p><p className="text-gray-800">{formatShortDate(entry.checkOut)}</p></div></div></div>))}</div></div> )}
         {activeTab === 'expenses' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center"><div><h2 className="text-xl font-bold text-gray-800 mb-1">Expense Manager</h2><p className="text-gray-600">Track all your trip-related spending here.</p></div><button onClick={() => setIsExpenseModalOpen(true)} className="flex items-center text-white py-2 px-4 rounded-lg font-medium" style={{backgroundColor: colors.sunsetOrange}} disabled={participants.length === 0}><Plus className="w-4 h-4 mr-2"/> Add Expense</button></div>{participants.length === 0 ? <p className="text-center text-gray-500 py-8">Please add participants to the trip before adding expenses.</p> : ( <> <div className="mb-4 border-b border-gray-200"><nav className="flex space-x-4" aria-label="Tabs">{(['list', 'balances', 'settlements'] as ExpenseSubTabType[]).map(subTab => ( <button key={subTab} onClick={() => setActiveExpenseTab(subTab)} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeExpenseTab === subTab ? 'border-b-2 text-orange-600' : 'text-gray-500 hover:text-gray-700'}`} style={{borderColor: activeExpenseTab === subTab ? colors.sunsetOrange : 'transparent', color: activeExpenseTab === subTab ? colors.sunsetOrange : ''}}> {subTab.charAt(0).toUpperCase() + subTab.slice(1)} </button> ))}</nav></div> {activeExpenseTab === 'list' && ( <div className="space-y-3">{expenses.length === 0 ? <p className="text-center text-gray-500 py-8">No expenses added yet.</p> : expenses.map(exp => ( <div key={exp.id} className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center"><div><p className="font-bold">{exp.description}</p><p className="text-sm text-gray-500">Paid by {getUserName(exp.paidBy)}</p></div><div className="text-right"><p className="font-bold text-lg">{formatCurrency(exp.amount)}</p><button onClick={() => handleDeleteExpense(exp.id)} className="p-1 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div></div> ))}</div> )} {activeExpenseTab === 'balances' && ( <div className="space-y-3">{expenseSummary.balances && Object.entries(expenseSummary.balances).map(([userId, balance]) => ( <div key={userId} className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center"><p className="font-medium">{getUserName(userId)}</p><p className={`font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(balance)}</p></div> ))}</div> )} {activeExpenseTab === 'settlements' && ( <div className="space-y-3">{expenseSummary.settlements.length === 0 ? <p className="text-center text-gray-500 py-8">Everyone is settled up!</p> : expenseSummary.settlements.map(settle => ( <div key={settle.id} className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center"><p>{getUserName(settle.from)} owes {getUserName(settle.to)}</p><p className="font-bold">{formatCurrency(settle.amount)}</p></div> ))}</div> )} </> )}</div> )}
       </div>
+        {activeTab === 'todos' && (
+          <div>
+            <div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold text-gray-800 mb-1">To-do List</h2>
+                <p className="text-gray-600">Track important tasks like bookings, tickets, and preparations.</p>
+              </div>
+              <button
+                onClick={() => { setEditingTodo({}); setIsTodoModalOpen(true); }}
+                className="flex items-center text-white py-2 px-4 rounded-lg font-medium"
+                style={{backgroundColor: colors.sunsetOrange}}
+              >
+                <Plus className="w-4 h-4 mr-2" /> Add To-do
+              </button>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              {todos.length === 0 ? (
+                <div className="text-center text-gray-500 py-12">
+                  <ClipboardList className="mx-auto w-12 h-12 text-gray-300 mb-4" />
+                  <p>No to-do items added yet.</p>
+                  <p className="text-sm mt-2">Add tasks to keep track of bookings and preparations.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {todos.map(todo => (
+                    <div key={todo.id} className={`p-4 hover:bg-gray-50 transition-colors ${todo.completed ? 'bg-green-50' : ''}`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start gap-3 flex-1">
+                          <button
+                            onClick={() => handleToggleTodo(todo.id)}
+                            className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${
+                              todo.completed 
+                                ? 'border-green-500 bg-green-500' 
+                                : 'border-gray-300 hover:border-orange-500'
+                            }`}
+                          >
+                            {todo.completed && <CheckSquare className="w-3 h-3 text-white" strokeWidth={3} />}
+                          </button>
+                          <div className="flex-1">
+                            <h4 className={`font-medium ${todo.completed ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                              {todo.activity}
+                            </h4>
+                            {todo.remarks && (
+                              <p className={`text-sm mt-1 ${todo.completed ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {todo.remarks}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-400 mt-2">
+                              Added: {new Date(todo.createdAt).toLocaleDateString('en-IN')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 ml-4">
+                          <button
+                            onClick={() => { setEditingTodo(todo); setIsTodoModalOpen(true); }}
+                            className="p-2 text-gray-500 hover:text-blue-600"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTodo(todo.id)}
+                            className="p-2 text-gray-500 hover:text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            {todos.length > 0 && (
+              <div className="mt-4 bg-white p-4 rounded-xl shadow-sm">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-600">Progress</span>
+                  <span className="font-medium">
+                    {todos.filter(t => t.completed).length} of {todos.length} completed
+                  </span>
+                </div>
+                <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="h-2 rounded-full transition-all duration-300"
+                    style={{
+                      backgroundColor: colors.sunsetOrange,
+                      width: `${todos.length > 0 ? (todos.filter(t => t.completed).length / todos.length) * 100 : 0}%`
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
     </div>
   );
 }

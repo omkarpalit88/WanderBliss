@@ -128,6 +128,7 @@ function App() {
     const dbTripData = {
       ...tripData,
       travel_legs: tripData.travelLegs || tripData.travel_legs, // Handle both field names
+      todos: tripData.todos, // Add todos to database update
     };
     
     // Remove the frontend field names to avoid conflicts

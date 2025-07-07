@@ -53,6 +53,14 @@ export interface ItineraryItem {
   status: 'pending' | 'done';
 }
 
+export interface TodoItem {
+  id: string;
+  activity: string;
+  completed: boolean;
+  remarks: string;
+  createdAt: Date;
+}
+
 export interface Trip {
   id: string;
   name: string;
@@ -73,6 +81,7 @@ export interface Trip {
   travel_legs?: TravelLeg[]; // Add database field name for compatibility
   // --- NEW: An array to hold lodging entries ---
   lodging?: LodgingEntry[];
+  todos?: TodoItem[];
 }
 
 export interface ExpenseSummary {
