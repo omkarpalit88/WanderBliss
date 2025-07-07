@@ -42,7 +42,7 @@ const AppContent = ({ session, trips, isLoading, addTrip, updateTrip, deleteTrip
 
       <Route
         path="/dashboard"
-        element={session ? <Dashboard trips={trips} deleteTrip={deleteTrip} /> : <Navigate to="/login" />}
+        element={session ? <Dashboard trips={trips} deleteTrip={deleteTrip} updateTrip={updateTrip} session={session} /> : <Navigate to="/login" />}
       />
       <Route
         path="/create-trip"
@@ -79,16 +79,27 @@ function App() {
     const fetchTrips = async () => {
       if (!session) return;
 
+      // Fetch trips where user is either the creator OR a participant
       const { data, error } = await supabase
         .from('trips')
         .select('*')
-        .eq('user_id', session.user.id)
+        .or(`user_id.eq.${session.user.id},participants.cs.[{"email":"${session.user.email}"}]`)
         .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching trips:', error);
       } else if (data) {
-        setTrips(data as Trip[]);
+        // Filter trips to ensure user has access (either as creator or participant)
+        const accessibleTrips = data.filter(trip => {
+          // User is the creator
+          if (trip.user_id === session.user.id) return true;
+          
+          // User is a participant
+          const participants = trip.participants || [];
+          return participants.some((p: any) => p.email === session.user.email);
+        });
+        
+        setTrips(accessibleTrips as Trip[]);
       }
     };
 
@@ -122,7 +133,17 @@ function App() {
   }, [session]); // The dependency array for useCallback was misplaced and incorrect.
 
   const updateTrip = useCallback(async (updatedTrip: Trip) => {
+    if (!session) throw new Error("User is not authenticated");
+    
     const { id, ...tripData } = updatedTrip;
+    
+    // Check if user has permission to update this trip
+    const canUpdate = updatedTrip.user_id === session.user.id || 
+      (updatedTrip.participants || []).some((p: any) => p.email === session.user.email);
+    
+    if (!canUpdate) {
+      throw new Error("You don't have permission to update this trip");
+    }
     
     // Map frontend field names to database column names
     const dbTripData = {
@@ -156,6 +177,14 @@ function App() {
   }, []);
 
   const deleteTrip = useCallback(async (tripId: string) => {
+    if (!session) throw new Error("User is not authenticated");
+    
+    // Check if user is the creator (only creators can delete trips)
+    const trip = trips.find(t => t.id === tripId);
+    if (!trip || trip.user_id !== session.user.id) {
+      throw new Error("Only the trip creator can delete this trip");
+    }
+    
     const { error } = await supabase
       .from('trips')
       .delete()

@@ -5,6 +5,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Trip, ItineraryItem, TravelLeg, LodgingEntry, Expense, Settlement, User as UserType, TodoItem } from '../types';
 import { debounce } from 'lodash';
+import { supabase } from '../supabase';
 
 // --- The utility functions are defined directly in this file to resolve import errors. ---
 const formatCurrency = (amount: number) => {
@@ -220,7 +221,10 @@ const ChecklistItem = ({ item, isChecked, onToggle }: { item: string, isChecked:
 
 
 // --- Main TripPlanner Component ---
-interface TripPlannerProps { trips: Trip[]; updateTrip: (updatedTrip: Trip) => Promise<void>; }
+interface TripPlannerProps { 
+  trips: Trip[]; 
+  updateTrip: (updatedTrip: Trip) => Promise<void>; 
+}
 type TabType = 'checklist' | 'itinerary' | 'participants' | 'travel' | 'lodging' | 'expenses' | 'todos';
 type ExpenseSubTabType = 'list' | 'balances' | 'settlements';
 
@@ -228,7 +232,17 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
   const { tripId } = useParams<{ tripId: string }>();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('checklist');
+  const [session, setSession] = useState<any>(null);
   const trip = trips.find((t: Trip) => t.id === tripId);
+
+  // Get current session to check permissions
+  useEffect(() => {
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+    };
+    getSession();
+  }, []);
 
   const [allPlaces, setAllPlaces] = useState<string[]>([]);
   const [allFoods, setAllFoods] = useState<string[]>([]);
@@ -298,17 +312,73 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
   const handleAddExpense = (expense: Expense) => { if (!trip) return; const newExpenses = [...expenses, expense]; setExpenses(newExpenses); triggerAutoSave({ ...trip, expenses: newExpenses }); setIsExpenseModalOpen(false); };
   const handleDeleteExpense = (expenseId: string) => { if (window.confirm('Are you sure?') && trip) { const newExpenses = expenses.filter(e => e.id !== expenseId); setExpenses(newExpenses); triggerAutoSave({ ...trip, expenses: newExpenses }); } };
   const handleAddParticipant = () => { if (newParticipantName && newParticipantEmail && trip) { const newParticipant: UserType = { id: `user-${Date.now()}`, name: newParticipantName, email: newParticipantEmail }; const updatedParticipants = [...participants, newParticipant]; setParticipants(updatedParticipants); triggerAutoSave({ ...trip, participants: updatedParticipants }); setNewParticipantName(''); setNewParticipantEmail(''); } };
-  const handleDeleteParticipant = (participantId: string) => { if (window.confirm('Are you sure?') && trip) { const updatedParticipants = participants.filter(p => p.id !== participantId); setParticipants(updatedParticipants); triggerAutoSave({ ...trip, participants: updatedParticipants }); } };
+  const handleDeleteParticipant = (participantId: string) => { 
+    if (!isTripCreator()) {
+      alert('Only the trip creator can remove participants.');
+      return;
+    }
+    if (window.confirm('Are you sure?') && trip) { 
+      const updatedParticipants = participants.filter(p => p.id !== participantId); 
+      setParticipants(updatedParticipants); 
+      triggerAutoSave({ ...trip, participants: updatedParticipants }); 
+    } 
+  };
   const formatDisplayDate = (dateString: string) => { if (!dateString) return 'N/A'; return new Date(dateString).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }); };
   const formatShortDate = (dateString: string) => { if (!dateString) return 'N/A'; return new Date(dateString).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }); };
   const getUserName = (userId: string) => participants.find((p: UserType) => p.id === userId)?.name || 'Unknown';
+  
+  // Check if current user can edit this trip
+  const canEditTrip = () => {
+    if (!session?.user || !trip) return false;
+    return trip.user_id === session.user.id || 
+      (trip.participants || []).some((p: any) => p.email === session.user.email);
+  };
+  
+  // Check if current user is the trip creator
+  const isTripCreator = () => {
+    if (!session?.user || !trip) return false;
+    return trip.user_id === session.user.id;
+  };
   const handleSaveTodo = (todo: TodoItem) => { if (!trip) return; const updatedTodos = todo.id && todos.find(t => t.id === todo.id) ? todos.map(t => t.id === todo.id ? todo : t) : [...todos, todo]; setTodos(updatedTodos); triggerAutoSave({ ...trip, todos: updatedTodos }); setIsTodoModalOpen(false); setEditingTodo(null); };
   const handleToggleTodo = (todoId: string) => { if (!trip) return; const updatedTodos = todos.map(t => t.id === todoId ? { ...t, completed: !t.completed } : t); setTodos(updatedTodos); triggerAutoSave({ ...trip, todos: updatedTodos }); };
   const handleDeleteTodo = (todoId: string) => { if (window.confirm('Are you sure?') && trip) { const updatedTodos = todos.filter(t => t.id !== todoId); setTodos(updatedTodos); triggerAutoSave({ ...trip, todos: updatedTodos }); } };
 
   const tabs: { id: TabType; label: string; icon: React.ElementType }[] = [ { id: 'checklist', label: 'Checklist', icon: CheckSquare }, { id: 'itinerary', label: 'Itinerary', icon: Calendar }, { id: 'participants', label: 'Participants', icon: Users2 }, { id: 'travel', label: 'Travel', icon: Plane }, { id: 'lodging', label: 'Lodging', icon: Hotel }, { id: 'expenses', label: 'Expenses', icon: IndianRupee }, { id: 'todos', label: 'To-dos', icon: ClipboardList }, ];
 
-  if (!trip || !expenseSummary) { return <div className="min-h-screen flex items-center justify-center p-4" style={{backgroundColor: colors.lightGrayBg}}><p>Trip not found or error calculating summary.</p></div>; }
+  if (!trip || !expenseSummary) { 
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{backgroundColor: colors.lightGrayBg}}>
+        <div className="text-center">
+          <p className="text-xl text-gray-600 mb-4">Trip not found or you don't have access to this trip.</p>
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="text-white py-2 px-4 rounded-lg"
+            style={{backgroundColor: colors.sunsetOrange}}
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    ); 
+  }
+  
+  // Check if user has access to this trip
+  if (!canEditTrip()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{backgroundColor: colors.lightGrayBg}}>
+        <div className="text-center">
+          <p className="text-xl text-gray-600 mb-4">You don't have permission to access this trip.</p>
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="text-white py-2 px-4 rounded-lg"
+            style={{backgroundColor: colors.sunsetOrange}}
+          >
+            Back to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: colors.lightGrayBg }} className="min-h-screen">
@@ -322,8 +392,21 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
           <button onClick={() => navigate('/dashboard')} className="flex items-center text-sm text-gray-500 hover:text-gray-900 mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
           </button>
-          <h1 className="text-3xl font-bold" style={{color: colors.darkText}}>{trip.name}</h1>
-          <p className="text-gray-500">{trip.description}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold" style={{color: colors.darkText}}>{trip.name}</h1>
+              <p className="text-gray-500">{trip.description}</p>
+            </div>
+            <div className="text-right">
+              <span className={`text-sm px-3 py-1 rounded-full font-medium ${
+                isTripCreator() 
+                  ? 'bg-orange-100 text-orange-800' 
+                  : 'bg-blue-100 text-blue-800'
+              }`}>
+                {isTripCreator() ? 'Trip Creator' : 'Participant'}
+              </span>
+            </div>
+          </div>
         </div>
         <div className="max-w-5xl mx-auto px-4 flex border-b border-gray-200 overflow-x-auto">
           {tabs.map((tab) => (
@@ -339,6 +422,83 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
         {activeTab === 'checklist' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center"><div><h2 className="text-xl font-bold text-gray-800 mb-1">Build Your Wishlist</h2><p className="text-gray-600">Select items here to add them to your Itinerary.</p></div><div className="text-sm text-gray-500">{saveStatus === 'saving' && <span className="flex items-center"><RefreshCw className="w-4 h-4 mr-2 animate-spin"/> Saving...</span>}{saveStatus === 'saved' && <span className="text-green-600">Saved!</span>}</div></div><div className="grid md:grid-cols-2 gap-6"><div><h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center"><Globe className="w-5 h-5 mr-3" style={{color: colors.sunsetOrange}}/> Places to Visit</h3><div className="space-y-2">{allPlaces.map((place) => (<ChecklistItem key={place} item={place} isChecked={selectedPlaces.includes(place)} onToggle={() => handleTogglePlace(place)} />))}</div><div className="mt-4 flex gap-2"><input type="text" value={newPlace} onChange={(e) => setNewPlace(e.target.value)} placeholder="Add a new place..." className="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:ring-2" style={{'--tw-ring-color': colors.sunsetOrange} as React.CSSProperties}/><button onClick={handleAddNewPlace} disabled={!newPlace.trim()} style={{backgroundColor: colors.sunsetOrange}} className="text-white p-2 rounded-lg transition-colors disabled:bg-gray-300"><Plus/></button></div></div><div><h3 className="font-semibold text-lg text-gray-800 mb-3 flex items-center"><Wand2 className="w-5 h-5 mr-3" style={{color: colors.pastelPurple}}/> Must-Try Foods</h3><div className="space-y-2">{allFoods.map((food) => (<ChecklistItem key={food} item={food} isChecked={selectedFoods.includes(food)} onToggle={() => handleToggleFood(food)} />))}</div><div className="mt-4 flex gap-2"><input type="text" value={newFood} onChange={(e) => setNewFood(e.target.value)} placeholder="Add a new food..." className="flex-grow px-3 py-2 border border-gray-300 rounded-lg focus:ring-2" style={{'--tw-ring-color': colors.sunsetOrange} as React.CSSProperties}/><button onClick={handleAddNewFood} disabled={!newFood.trim()} style={{backgroundColor: colors.sunsetOrange}} className="text-white p-2 rounded-lg transition-colors disabled:bg-gray-300"><Plus/></button></div></div></div></div> )}
         {activeTab === 'itinerary' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center"><div><h2 className="text-xl font-bold text-gray-800 mb-1">Trip Itinerary</h2><p className="text-gray-600">Assign dates to your selected activities.</p></div><div>{!isEditingItinerary ? <button onClick={() => setIsEditingItinerary(true)} className="flex items-center text-white py-2 px-4 rounded-lg font-medium" style={{backgroundColor: colors.sunsetOrange}}><Edit className="w-4 h-4 mr-2"/> Edit Plan</button> : <div className="flex items-center gap-4"><span className="text-sm text-gray-500">{saveStatus === 'saving' && <span className="flex items-center"><RefreshCw className="w-4 h-4 mr-2 animate-spin"/> Saving...</span>}{saveStatus === 'saved' && <span className="text-green-600">Saved!</span>}</span><button onClick={handleSaveItinerary} className="flex items-center bg-green-600 text-white py-2 px-4 rounded-lg font-medium"><Save className="w-4 h-4 mr-2"/> Save Plan</button></div>}</div></div><div className="bg-white rounded-xl shadow-sm overflow-x-auto"><table className="w-full text-sm text-left"><thead className="bg-gray-50 text-xs text-gray-700 uppercase"><tr><th scope="col" className="px-6 py-3">Activity</th><th scope="col" className="px-6 py-3">Category</th><th scope="col" className="px-6 py-3">Date</th><th scope="col" className="px-6 py-3 text-center">Done</th></tr></thead><tbody>{generatedItinerary.map(item => (<tr key={item.id} className={`border-b hover:bg-gray-50 ${item.status === 'done' ? 'bg-green-50' : ''}`}><td className={`px-6 py-4 font-medium ${item.status === 'done' ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{item.name}</td><td className="px-6 py-4"><span className={`px-2 py-1 text-xs font-medium rounded-full ${item.category === 'place' ? 'bg-orange-100 text-orange-800' : 'bg-purple-100 text-purple-800'}`}>{item.category}</span></td><td className="px-6 py-4"><input type="date" value={item.date || ''} onChange={(e) => handleUpdateItineraryItem(item.id, e.target.value, item.status)} className="p-1 border border-gray-300 rounded-md disabled:bg-gray-100" disabled={!isEditingItinerary}/></td><td className="px-6 py-4 text-center"><input type="checkbox" checked={item.status === 'done'} onChange={(e) => handleUpdateItineraryItem(item.id, item.date, e.target.checked ? 'done' : 'pending')} className="w-5 h-5 rounded focus:ring-orange-500" style={{color: colors.sunsetOrange}} disabled={!isEditingItinerary}/></td></tr>))}</tbody></table></div></div> )}
         {activeTab === 'participants' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6"><h2 className="text-xl font-bold text-gray-800 mb-1">Trip Participants</h2><p className="text-gray-600">Manage the members of this trip.</p></div><div className="grid md:grid-cols-2 gap-6"><div><h3 className="font-semibold text-lg text-gray-800 mb-3">Add New Participant</h3><div className="bg-white p-6 rounded-xl shadow-sm border space-y-4"><div><label className="block text-sm font-medium text-gray-700 mb-1">Name</label><input type="text" value={newParticipantName} onChange={(e) => setNewParticipantName(e.target.value)} placeholder="Enter name" className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div><div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" value={newParticipantEmail} onChange={(e) => setNewParticipantEmail(e.target.value)} placeholder="Enter email" className="w-full px-3 py-2 border border-gray-300 rounded-lg"/></div><button onClick={handleAddParticipant} className="w-full flex items-center justify-center text-white py-2 px-4 rounded-lg font-medium" style={{backgroundColor: colors.sunsetOrange}}><Plus className="w-4 h-4 mr-2"/>Add to Trip</button></div></div><div><h3 className="font-semibold text-lg text-gray-800 mb-3">Current Members</h3><div className="bg-white p-6 rounded-xl shadow-sm border space-y-3">{participants.length === 0 ? <p className="text-gray-500">No participants added yet.</p> : participants.map(p => ( <div key={p.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg"><div><p className="font-medium text-gray-800">{p.name}</p><p className="text-xs text-gray-500">{p.email}</p></div><button onClick={() => handleDeleteParticipant(p.id)} className="p-2 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div> ))}</div></div></div></div> )}
+        {activeTab === 'participants' && ( 
+          <div>
+            <div className="bg-white p-6 rounded-xl shadow-sm mb-6">
+              <h2 className="text-xl font-bold text-gray-800 mb-1">Trip Participants</h2>
+              <p className="text-gray-600">
+                {isTripCreator() 
+                  ? "Manage the members of this trip. Participants can view and edit all trip details." 
+                  : "View trip members. Only the trip creator can add or remove participants."
+                }
+              </p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6">
+              {isTripCreator() && (
+                <div>
+                  <h3 className="font-semibold text-lg text-gray-800 mb-3">Add New Participant</h3>
+                  <div className="bg-white p-6 rounded-xl shadow-sm border space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <input 
+                        type="text" 
+                        value={newParticipantName} 
+                        onChange={(e) => setNewParticipantName(e.target.value)} 
+                        placeholder="Enter name" 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <input 
+                        type="email" 
+                        value={newParticipantEmail} 
+                        onChange={(e) => setNewParticipantEmail(e.target.value)} 
+                        placeholder="Enter email" 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        The participant will be able to access this trip when they log in with this email.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={handleAddParticipant} 
+                      className="w-full flex items-center justify-center text-white py-2 px-4 rounded-lg font-medium" 
+                      style={{backgroundColor: colors.sunsetOrange}}
+                    >
+                      <Plus className="w-4 h-4 mr-2"/>Add to Trip
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className={isTripCreator() ? '' : 'md:col-span-2'}>
+                <h3 className="font-semibold text-lg text-gray-800 mb-3">Current Members</h3>
+                <div className="bg-white p-6 rounded-xl shadow-sm border space-y-3">
+                  {participants.length === 0 ? (
+                    <p className="text-gray-500">No participants added yet.</p>
+                  ) : (
+                    participants.map(p => ( 
+                      <div key={p.id} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-800">{p.name}</p>
+                          <p className="text-xs text-gray-500">{p.email}</p>
+                        </div>
+                        {isTripCreator() && (
+                          <button 
+                            onClick={() => handleDeleteParticipant(p.id)} 
+                            className="p-2 text-gray-400 hover:text-red-500"
+                          >
+                            <Trash2 className="w-4 h-4"/>
+                          </button>
+                        )}
+                      </div> 
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div> 
+        )}
         {activeTab === 'travel' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center"><div><h2 className="text-xl font-bold text-gray-800 mb-1">Travel Legs</h2><p className="text-gray-600">Log each individual journey for the trip.</p></div><button onClick={() => { setEditingLeg({}); setIsTravelModalOpen(true); }} className="flex items-center text-white py-2 px-4 rounded-lg font-medium" style={{backgroundColor: colors.sunsetOrange}}><Plus className="w-4 h-4 mr-2"/> Add Travel Leg</button></div><div className="space-y-4">{travelLegs.length === 0 ? <div className="text-center text-gray-500 py-12"><Plane className="mx-auto w-12 h-12 text-gray-300" /><p className="mt-4">No travel legs added yet.</p></div> : travelLegs.map(leg => { const Icon = leg.mode === 'flight' ? Plane : leg.mode === 'train' ? Train : leg.mode === 'car' ? Car : BusFront; return (<div key={leg.id} className="bg-white p-6 rounded-xl shadow-sm border"><div className="flex justify-between items-start"><div className="flex items-center gap-4">{Icon && <Icon className="w-10 h-10 p-2 bg-gray-100 rounded-full" style={{color: colors.darkText}}/>}<div><p className="font-semibold text-gray-500 text-xs uppercase">Travellers</p><p className="font-bold text-lg text-gray-800">{leg.travellerNames}</p></div></div><div className="flex gap-2"><button onClick={() => { setEditingLeg(leg); setIsTravelModalOpen(true); }} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4"/></button><button onClick={() => handleDeleteTravelLeg(leg.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4"/></button></div></div><div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-3 gap-4 text-sm"><div><p className="font-semibold text-gray-500 text-xs uppercase">Route</p><p className="text-gray-800">{leg.startCity} → {leg.destinationCity}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Details</p><p className="text-gray-800">{leg.details || 'N/A'}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Departure</p><p className="text-gray-800">{formatDisplayDate(leg.etd)}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Arrival</p><p className="text-gray-800">{formatDisplayDate(leg.eta)}</p></div></div></div>)})}</div></div> )}
         {activeTab === 'lodging' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center"><div><h2 className="text-xl font-bold text-gray-800 mb-1">Accommodation</h2><p className="text-gray-600">Log each place you're staying at.</p></div><button onClick={() => { setEditingLodging({}); setIsLodgingModalOpen(true); }} className="flex items-center text-white py-2 px-4 rounded-lg font-medium" style={{backgroundColor: colors.sunsetOrange}}><Plus className="w-4 h-4 mr-2"/> Add Lodging</button></div><div className="space-y-4">{lodgingEntries.length === 0 ? <div className="text-center text-gray-500 py-12"><Hotel className="mx-auto w-12 h-12 text-gray-300" /><p className="mt-4">No lodging entries added yet.</p></div> : lodgingEntries.map(entry => (<div key={entry.id} className="bg-white p-6 rounded-xl shadow-sm border"><div className="flex justify-between items-start"><div className="flex items-center gap-4"><Building2 className="w-10 h-10 p-2 bg-gray-100 rounded-full" style={{color: colors.darkText}}/><div><p className="font-semibold text-gray-500 text-xs uppercase">Guests</p><p className="font-bold text-lg text-gray-800">{entry.guestNames}</p></div></div><div className="flex gap-2"><button onClick={() => { setEditingLodging(entry); setIsLodgingModalOpen(true); }} className="p-2 text-gray-500 hover:text-blue-600"><Edit className="w-4 h-4"/></button><button onClick={() => handleDeleteLodging(entry.id)} className="p-2 text-gray-500 hover:text-red-600"><Trash2 className="w-4 h-4"/></button></div></div><div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-3 gap-4 text-sm"><div><p className="font-semibold text-gray-500 text-xs uppercase">Place</p><p className="text-gray-800">{entry.placeName}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Location</p><p className="text-gray-800">{entry.area}, {entry.city}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Check-in</p><p className="text-gray-800">{formatShortDate(entry.checkIn)}</p></div><div><p className="font-semibold text-gray-500 text-xs uppercase">Check-out</p><p className="text-gray-800">{formatShortDate(entry.checkOut)}</p></div></div></div>))}</div></div> )}
         {activeTab === 'expenses' && ( <div><div className="bg-white p-6 rounded-xl shadow-sm mb-6 flex justify-between items-center"><div><h2 className="text-xl font-bold text-gray-800 mb-1">Expense Manager</h2><p className="text-gray-600">Track all your trip-related spending here.</p></div><button onClick={() => setIsExpenseModalOpen(true)} className="flex items-center text-white py-2 px-4 rounded-lg font-medium" style={{backgroundColor: colors.sunsetOrange}} disabled={participants.length === 0}><Plus className="w-4 h-4 mr-2"/> Add Expense</button></div>{participants.length === 0 ? <p className="text-center text-gray-500 py-8">Please add participants to the trip before adding expenses.</p> : ( <> <div className="mb-4 border-b border-gray-200"><nav className="flex space-x-4" aria-label="Tabs">{(['list', 'balances', 'settlements'] as ExpenseSubTabType[]).map(subTab => ( <button key={subTab} onClick={() => setActiveExpenseTab(subTab)} className={`px-3 py-2 font-medium text-sm rounded-t-lg ${activeExpenseTab === subTab ? 'border-b-2 text-orange-600' : 'text-gray-500 hover:text-gray-700'}`} style={{borderColor: activeExpenseTab === subTab ? colors.sunsetOrange : 'transparent', color: activeExpenseTab === subTab ? colors.sunsetOrange : ''}}> {subTab.charAt(0).toUpperCase() + subTab.slice(1)} </button> ))}</nav></div> {activeExpenseTab === 'list' && ( <div className="space-y-3">{expenses.length === 0 ? <p className="text-center text-gray-500 py-8">No expenses added yet.</p> : expenses.map(exp => ( <div key={exp.id} className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center"><div><p className="font-bold">{exp.description}</p><p className="text-sm text-gray-500">Paid by {getUserName(exp.paidBy)}</p></div><div className="text-right"><p className="font-bold text-lg">{formatCurrency(exp.amount)}</p><button onClick={() => handleDeleteExpense(exp.id)} className="p-1 text-gray-400 hover:text-red-500"><Trash2 className="w-4 h-4"/></button></div></div> ))}</div> )} {activeExpenseTab === 'balances' && ( <div className="space-y-3">{expenseSummary.balances && Object.entries(expenseSummary.balances).map(([userId, balance]) => ( <div key={userId} className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center"><p className="font-medium">{getUserName(userId)}</p><p className={`font-bold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>{formatCurrency(balance)}</p></div> ))}</div> )} {activeExpenseTab === 'settlements' && ( <div className="space-y-3">{expenseSummary.settlements.length === 0 ? <p className="text-center text-gray-500 py-8">Everyone is settled up!</p> : expenseSummary.settlements.map(settle => ( <div key={settle.id} className="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center"><p>{getUserName(settle.from)} owes {getUserName(settle.to)}</p><p className="font-bold">{formatCurrency(settle.amount)}</p></div> ))}</div> )} </> )}</div> )}

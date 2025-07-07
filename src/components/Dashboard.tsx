@@ -9,20 +9,24 @@ interface DashboardProps {
   trips: Trip[];
   deleteTrip: (tripId: string) => Promise<void>;
   updateTrip?: (updatedTrip: Trip) => Promise<void>;
+  session?: any; // Add session to check user permissions
 }
 
-// --- MOCK DATA: In a real app, this would come from your auth context ---
-const mockUser = {
-  name: 'Omi',
-  // You can add an avatar URL here if you have one
-  // avatarUrl: 'https://...
-};
+import { supabase } from '../supabase';
 
-const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) => {
+const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, session }) => {
   const navigate = useNavigate();
   const [editingTripId, setEditingTripId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
+  const [userName, setUserName] = useState('User');
 
+  useEffect(() => {
+    if (session?.user?.email) {
+      // Extract name from email or use a default
+      const emailName = session.user.email.split('@')[0];
+      setUserName(emailName.charAt(0).toUpperCase() + emailName.slice(1));
+    }
+  }, [session]);
   const handleCreateTrip = () => {
     navigate('/create-trip');
   };
@@ -32,13 +36,19 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) 
   };
   
   const handleLogout = () => {
-    // In a real app, you would call your Firebase signOut function here
-    console.log("Logout clicked");
-    // navigate('/login');
+    supabase.auth.signOut();
   };
 
   const handleDeleteClick = async (e: React.MouseEvent, tripId: string) => {
     e.stopPropagation();
+    
+    // Check if user is the creator
+    const trip = trips.find(t => t.id === tripId);
+    if (!trip || trip.user_id !== session?.user?.id) {
+      alert("Only the trip creator can delete this trip.");
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to permanently delete this trip?')) {
       try {
         await deleteTrip(tripId);
@@ -51,6 +61,16 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) 
 
   const handleEditClick = (e: React.MouseEvent, trip: Trip) => {
     e.stopPropagation();
+    
+    // Check if user has permission to edit
+    const canEdit = trip.user_id === session?.user?.id || 
+      (trip.participants || []).some((p: any) => p.email === session?.user?.email);
+    
+    if (!canEdit) {
+      alert("You don't have permission to edit this trip.");
+      return;
+    }
+    
     setEditingTripId(trip.id);
     setEditingName(trip.name);
   };
@@ -121,6 +141,28 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) 
     } catch (error) {
       return null;
     }
+  
+  const getTripRole = (trip: Trip) => {
+    if (!session?.user) return null;
+    
+    if (trip.user_id === session.user.id) {
+      return 'Creator';
+    }
+    
+    const isParticipant = (trip.participants || []).some((p: any) => p.email === session.user.email);
+    return isParticipant ? 'Participant' : null;
+  };
+  
+  const canEditTrip = (trip: Trip) => {
+    if (!session?.user) return false;
+    return trip.user_id === session.user.id || 
+      (trip.participants || []).some((p: any) => p.email === session.user.email);
+  };
+  
+  const canDeleteTrip = (trip: Trip) => {
+    if (!session?.user) return false;
+    return trip.user_id === session.user.id;
+  };
   };
   const colors = {
     brightYellow: '#FFD43A',
@@ -144,7 +186,8 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) 
           {/* User Account Section */}
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="font-semibold" style={{color: colors.darkText}}>Welcome, {mockUser.name}!</p>
+              <p className="font-semibold" style={{color: colors.darkText}}>Welcome, {userName}!</p>
+              <p className="text-xs text-gray-500">{session?.user?.email}</p>
             </div>
             <UserCircle size={32} className="text-gray-400" />
             <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600" aria-label="Logout">
@@ -229,16 +272,30 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) 
                           <h3 className="text-xl font-semibold" style={{ color: colors.darkText }}>
                             {trip.name}
                           </h3>
-                          <button
+                          {canEditTrip(trip) && <button
                             onClick={(e) => handleEditClick(e, trip)}
                             className="p-1 text-gray-400 hover:text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             <Edit2 size={16} />
-                          </button>
+                          </button>}
                         </div>
                       )}
                     </div>
                     <div className="space-y-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          getTripRole(trip) === 'Creator' 
+                            ? 'bg-orange-100 text-orange-800' 
+                            : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {getTripRole(trip)}
+                        </span>
+                        {(trip.participants || []).length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            {(trip.participants || []).length} participant{(trip.participants || []).length !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
                       {formatTripDates(trip) && (
                         <p className="text-sm font-medium text-gray-700 flex items-center">
                           <Calendar size={14} className="mr-2" style={{ color: colors.sunsetOrange }} />
@@ -251,13 +308,13 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) 
                     </div>
                   </div>
                   <div className="flex items-center">
-                    <button
+                    {canDeleteTrip(trip) && <button
                       onClick={(e) => handleDeleteClick(e, trip.id)}
                       className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-opacity opacity-0 group-hover:opacity-100 mr-2"
                       aria-label="Delete trip"
                     >
                       <Trash2 size={18} />
-                    </button>
+                    </button>}
                     <ChevronRight size={24} className="text-gray-300 transition-transform group-hover:translate-x-1" />
                   </div>
                 </div>
