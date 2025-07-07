@@ -1,6 +1,6 @@
 // src/components/Dashboard.tsx
 import React from 'react';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ChevronRight, Sun, Trash2, UserCircle, LogOut, Calendar, Edit2, Check, X } from 'lucide-react';
 import { Trip } from '../types';

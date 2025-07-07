@@ -59,8 +59,7 @@ const ExpenseModal = ({ trip, onSave, onClose }: { trip: Trip, onSave: (expense:
   const [paidBy, setPaidBy] = useState(trip.participants[0]?.id || '');
   const [splitBetween, setSplitBetween] = useState<string[]>(trip.participants.map(p => p.id));
   const handleSplitChange = (participantId: string) => setSplitBetween(prev => prev.includes(participantId) ? prev.filter(id => id !== participantId) : [...prev, participantId]);
-    triggerAutoSave({ ...trip, travelLegs: updatedLegs, travel_legs: updatedLegs }); 
-      triggerAutoSave({ ...trip, travelLegs: updatedLegs, travel_legs: updatedLegs }); 
+  const handleSave = () => {
     onSave({ id: `exp-${Date.now()}`, tripId: trip.id, description, amount: parseFloat(amount), paidBy, splitBetween, date: new Date(), category: 'General' });
   };
 
