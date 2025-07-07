@@ -1,7 +1,7 @@
 // src/components/Dashboard.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronRight, Sun, Trash2, UserCircle, LogOut } from 'lucide-react';
+import { Plus, ChevronRight, Sun, Trash2, UserCircle, LogOut, Calendar } from 'lucide-react';
 import { Trip } from '../types';
 
 interface DashboardProps {
@@ -57,6 +57,39 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
     }
   };
 
+  const formatTripDates = (trip: any) => {
+    // Handle both database field names (start_date, end_date) and frontend field names (startDate, endDate)
+    const startDate = trip.start_date || trip.startDate;
+    const endDate = trip.end_date || trip.endDate;
+    
+    if (!startDate && !endDate) return null;
+    
+    try {
+      const formatDate = (dateStr: string) => {
+        if (!dateStr) return null;
+        return new Date(dateStr).toLocaleDateString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric'
+        });
+      };
+      
+      const formattedStart = formatDate(startDate);
+      const formattedEnd = formatDate(endDate);
+      
+      if (formattedStart && formattedEnd) {
+        return `${formattedStart} - ${formattedEnd}`;
+      } else if (formattedStart) {
+        return `From ${formattedStart}`;
+      } else if (formattedEnd) {
+        return `Until ${formattedEnd}`;
+      }
+      
+      return null;
+    } catch (error) {
+      return null;
+    }
+  };
   const colors = {
     brightYellow: '#FFD43A',
     sunsetOrange: '#FF5841',
@@ -131,9 +164,17 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
                 >
                   <div>
                     <h3 className="text-xl font-semibold" style={{ color: colors.darkText }}>{trip.name}</h3>
-                    <p className="text-sm text-gray-500">
-                      Created on: {formatCreatedDate(trip)}
-                    </p>
+                    <div className="space-y-1">
+                      {formatTripDates(trip) && (
+                        <p className="text-sm font-medium text-gray-700 flex items-center">
+                          <Calendar size={14} className="mr-2" style={{ color: colors.sunsetOrange }} />
+                          {formatTripDates(trip)}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500">
+                        Created: {formatCreatedDate(trip)}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center">
                     <button
