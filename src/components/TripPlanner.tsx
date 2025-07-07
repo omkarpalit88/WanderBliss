@@ -315,7 +315,22 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
   const handleDeleteLodging = (entryId: string) => { if (window.confirm('Are you sure?') && trip) { const updatedLodging = lodgingEntries.filter(l => l.id !== entryId); setLodgingEntries(updatedLodging); triggerAutoSave({ ...trip, lodging: updatedLodging }); } };
   const handleAddExpense = (expense: Expense) => { if (!trip) return; const newExpenses = [...expenses, expense]; setExpenses(newExpenses); triggerAutoSave({ ...trip, expenses: newExpenses }); setIsExpenseModalOpen(false); };
   const handleDeleteExpense = (expenseId: string) => { if (window.confirm('Are you sure?') && trip) { const newExpenses = expenses.filter(e => e.id !== expenseId); setExpenses(newExpenses); triggerAutoSave({ ...trip, expenses: newExpenses }); } };
-  const handleAddParticipant = () => { if (newParticipantName && newParticipantEmail && trip) { const newParticipant: UserType = { id: `user-${Date.now()}`, name: newParticipantName, email: newParticipantEmail }; const updatedParticipants = [...participants, newParticipant]; setParticipants(updatedParticipants); triggerAutoSave({ ...trip, participants: updatedParticipants }); setNewParticipantName(''); setNewParticipantEmail(''); } };
+  const handleAddParticipant = () => { 
+    if (newParticipantName && newParticipantEmail && trip) { 
+      const newParticipant: UserType = { 
+        id: `user-${Date.now()}`, 
+        name: newParticipantName, 
+        email: newParticipantEmail 
+      }; 
+      const updatedParticipants = [...participants, newParticipant]; 
+      console.log('Adding participant:', newParticipant);
+      console.log('Updated participants list:', updatedParticipants);
+      setParticipants(updatedParticipants); 
+      triggerAutoSave({ ...trip, participants: updatedParticipants }); 
+      setNewParticipantName(''); 
+      setNewParticipantEmail(''); 
+    } 
+  };
   const handleDeleteParticipant = (participantId: string) => { 
     if (!isTripCreator()) {
       alert('Only the trip creator can remove participants.');
@@ -323,6 +338,8 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
     }
     if (window.confirm('Are you sure?') && trip) { 
       const updatedParticipants = participants.filter(p => p.id !== participantId); 
+      console.log('Deleting participant:', participantId);
+      console.log('Updated participants list:', updatedParticipants);
       setParticipants(updatedParticipants); 
       triggerAutoSave({ ...trip, participants: updatedParticipants }); 
     } 
