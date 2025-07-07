@@ -63,8 +63,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, se
     e.stopPropagation();
     
     // Check if user has permission to edit
-    const canEdit = trip.user_id === session?.user?.id || 
-      (trip.participants || []).some((p: any) => p.email === session?.user?.email);
+    const canEdit = canEditTrip(trip);
     
     if (!canEdit) {
       alert("You don't have permission to edit this trip.");
@@ -150,14 +149,19 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, se
       return 'Creator';
     }
     
-    const isParticipant = (trip.participants || []).some((p: any) => p.email === session.user.email);
+    const isParticipant = (trip.participants || []).some((p: any) => 
+      p.email && p.email.toLowerCase() === session.user.email.toLowerCase()
+    );
     return isParticipant ? 'Participant' : null;
   };
   
   const canEditTrip = (trip: Trip) => {
     if (!session?.user) return false;
-    return trip.user_id === session.user.id || 
-      (trip.participants || []).some((p: any) => p.email === session.user.email);
+    const isCreator = trip.user_id === session.user.id;
+    const isParticipant = (trip.participants || []).some((p: any) => 
+      p.email && p.email.toLowerCase() === session.user.email.toLowerCase()
+    );
+    return isCreator || isParticipant;
   };
   
   const canDeleteTrip = (trip: Trip) => {

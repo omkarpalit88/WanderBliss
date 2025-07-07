@@ -79,27 +79,45 @@ function App() {
     const fetchTrips = async () => {
       if (!session) return;
 
-      // Fetch trips where user is either the creator OR a participant
-      const { data, error } = await supabase
-        .from('trips')
-        .select('*')
-        .or(`user_id.eq.${session.user.id},participants.cs.[{"email":"${session.user.email}"}]`)
-        .order('created_at', { ascending: false });
+      try {
+        // First, get all trips where user is the creator
+        const { data: createdTrips, error: createdError } = await supabase
+          .from('trips')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching trips:', error);
-      } else if (data) {
-        // Filter trips to ensure user has access (either as creator or participant)
-        const accessibleTrips = data.filter(trip => {
-          // User is the creator
-          if (trip.user_id === session.user.id) return true;
+        if (createdError) {
+          console.error('Error fetching created trips:', createdError);
+          return;
+        }
+
+        // Then, get all trips where user might be a participant
+        const { data: allTrips, error: allTripsError } = await supabase
+          .from('trips')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (allTripsError) {
+          console.error('Error fetching all trips:', allTripsError);
+          return;
+        }
+
+        // Filter trips where user is a participant
+        const participantTrips = (allTrips || []).filter(trip => {
+          if (trip.user_id === session.user.id) return false; // Already included in createdTrips
           
-          // User is a participant
           const participants = trip.participants || [];
-          return participants.some((p: any) => p.email === session.user.email);
+          return participants.some((p: any) => 
+            p.email && p.email.toLowerCase() === session.user.email.toLowerCase()
+          );
         });
-        
-        setTrips(accessibleTrips as Trip[]);
+
+        // Combine both arrays
+        const allAccessibleTrips = [...(createdTrips || []), ...participantTrips];
+        setTrips(allAccessibleTrips as Trip[]);
+      } catch (error) {
+        console.error('Error fetching trips:', error);
       }
     };
 
@@ -138,8 +156,11 @@ function App() {
     const { id, ...tripData } = updatedTrip;
     
     // Check if user has permission to update this trip
-    const canUpdate = updatedTrip.user_id === session.user.id || 
-      (updatedTrip.participants || []).some((p: any) => p.email === session.user.email);
+    const isCreator = updatedTrip.user_id === session.user.id;
+    const isParticipant = (updatedTrip.participants || []).some((p: any) => 
+      p.email && p.email.toLowerCase() === session.user.email.toLowerCase()
+    );
+    const canUpdate = isCreator || isParticipant;
     
     if (!canUpdate) {
       throw new Error("You don't have permission to update this trip");
@@ -181,7 +202,11 @@ function App() {
     
     // Check if user is the creator (only creators can delete trips)
     const trip = trips.find(t => t.id === tripId);
-    if (!trip || trip.user_id !== session.user.id) {
+    if (!trip) {
+      throw new Error("Trip not found");
+    }
+    
+    if (trip.user_id !== session.user.id) {
       throw new Error("Only the trip creator can delete this trip");
     }
     
