@@ -70,6 +70,7 @@ export interface Trip {
   };
   itinerary?: ItineraryItem[];
   travelLegs?: TravelLeg[];
+  travel_legs?: TravelLeg[]; // Add database field name for compatibility
   // --- NEW: An array to hold lodging entries ---
   lodging?: LodgingEntry[];
 }

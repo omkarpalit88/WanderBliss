@@ -59,8 +59,8 @@ const ExpenseModal = ({ trip, onSave, onClose }: { trip: Trip, onSave: (expense:
   const [paidBy, setPaidBy] = useState(trip.participants[0]?.id || '');
   const [splitBetween, setSplitBetween] = useState<string[]>(trip.participants.map(p => p.id));
   const handleSplitChange = (participantId: string) => setSplitBetween(prev => prev.includes(participantId) ? prev.filter(id => id !== participantId) : [...prev, participantId]);
-  const handleSave = () => {
-    if (!description || !amount || !paidBy || splitBetween.length === 0) { alert('Please fill out all fields.'); return; }
+    triggerAutoSave({ ...trip, travelLegs: updatedLegs, travel_legs: updatedLegs }); 
+      triggerAutoSave({ ...trip, travelLegs: updatedLegs, travel_legs: updatedLegs }); 
     onSave({ id: `exp-${Date.now()}`, tripId: trip.id, description, amount: parseFloat(amount), paidBy, splitBetween, date: new Date(), category: 'General' });
   };
 
@@ -205,7 +205,7 @@ export default function TripPlanner({ trips, updateTrip }: TripPlannerProps) {
       setSelectedPlaces(trip.inspiration?.selectedPlaces || []);
       setSelectedFoods(trip.inspiration?.selectedFoods || []);
       setItinerary(trip.itinerary || []);
-      setTravelLegs(trip.travelLegs || []);
+      setTravelLegs(trip.travelLegs || trip.travel_legs || []);
       setLodgingEntries(trip.lodging || []);
       setExpenses(trip.expenses || []);
       setParticipants(trip.participants || []);

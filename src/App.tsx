@@ -127,11 +127,19 @@ function App() {
     // Map frontend field names to database column names
     const dbTripData = {
       ...tripData,
-      travel_legs: tripData.travelLegs, // Map travelLegs to travel_legs
+      travel_legs: tripData.travelLegs || tripData.travel_legs, // Handle both field names
     };
     
-    // Remove the frontend field name to avoid conflicts
+    // Remove the frontend field names to avoid conflicts
     delete (dbTripData as any).travelLegs;
+    delete (dbTripData as any).travel_legs;
+    
+    // Add the correct database field name
+    if (tripData.travelLegs) {
+      dbTripData.travel_legs = tripData.travelLegs;
+    } else if (tripData.travel_legs) {
+      dbTripData.travel_legs = tripData.travel_legs;
+    }
     
     const { error } = await supabase
       .from('trips')
