@@ -1,6 +1,5 @@
 // src/components/Home.tsx
-import React, { useState } from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Globe, PlusCircle, ArrowLeft, UserCircle, LogOut } from 'lucide-react';
 import { supabase } from '../supabase';
@@ -33,37 +32,24 @@ const Home: React.FC<HomeProps> = ({ addTrip, currentUserEmail, session }) => {
     setIsCreating(true);
     setError('');
 
-    {/*const newTrip = {
+    const newTripData = {
       name: destination,
-      description: `A trip to ${destination}`, // A default description
-      startDate: startDate,
-      endDate: endDate,
-      createdAt: new Date(),
+      description: `A trip to ${destination}`,
+      // --- IMPORTANT CHANGE: Use 'snake_case' to match Supabase database column names ---
+      start_date: startDate, // Changed from 'startDate' to 'start_date'
+      end_date: endDate,     // Changed from 'endDate' to 'end_date'
+      created_at: new Date().toISOString(), // Changed from 'createdAt' to 'created_at' and added .toISOString()
+
+      // Keep these exactly as they are. Supabase typically handles JSON/JSONB types for these.
       participants: [],
       expenses: [],
       inspiration: {
         places: [],
         foods: [],
         selectedPlaces: [],
-        selectedFoods: [],*/}
-    const newTripData = { // You can keep the name 'newTrip' or change it to 'newTripData' as I did here.
-  name: destination,
-  description: `A trip to ${destination}`,
-  // --- IMPORTANT CHANGE: Use 'snake_case' to match Supabase database column names ---
-  start_date: startDate, // Changed from 'startDate' to 'start_date'
-  end_date: endDate,     // Changed from 'endDate' to 'end_date'
-  created_at: new Date().toISOString(), // Changed from 'createdAt' to 'created_at' and added .toISOString()
-
-  // Keep these exactly as they are. Supabase typically handles JSON/JSONB types for these.
-  participants: [],
-  expenses: [],
-  inspiration: {
-    places: [],
-    foods: [],
-    selectedPlaces: [],
-    selectedFoods: [],
-  }
-};
+        selectedFoods: [],
+      }
+    };
 
     try {
       const newTripId = await addTrip(newTripData);
