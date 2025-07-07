@@ -1,4 +1,4 @@
-FairShare
+WanderBliss
 🤖 AI Trip Planner
 This is a web application designed to help users kickstart their travel planning. By simply providing a destination and travel dates, users can get instant, AI-powered inspiration for their trip, including top places to visit and must-try local foods. This project now uses the OpenAI API to generate creative and helpful travel suggestions.
 
