@@ -141,6 +141,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, se
     } catch (error) {
       return null;
     }
+  };
   
   const getTripRole = (trip: Trip) => {
     if (!session?.user) return null;
@@ -163,7 +164,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, se
     if (!session?.user) return false;
     return trip.user_id === session.user.id;
   };
-  };
+  
   const colors = {
     brightYellow: '#FFD43A',
     sunsetOrange: '#FF5841',
