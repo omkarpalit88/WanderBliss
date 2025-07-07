@@ -17,6 +17,7 @@ const AppContent = ({ session, trips, isLoading, addTrip, updateTrip, deleteTrip
   isLoading: boolean;
   addTrip: (newTrip: any) => Promise<string>;
   updateTrip: (updatedTrip: Trip) => Promise<void>;
+  addParticipantToTrip: (tripId: string, email: string) => Promise<{ success: boolean; message: string; isNewUser: boolean }>;
   deleteTrip: (tripId: string) => Promise<void>;
 }) => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const AppContent = ({ session, trips, isLoading, addTrip, updateTrip, deleteTrip
       />
       <Route
         path="/trip-planner/:tripId"
-        element={session ? <TripPlanner trips={trips} updateTrip={updateTrip} /> : <Navigate to="/login" />}
+        element={session ? <TripPlanner trips={trips} updateTrip={updateTrip} addParticipantToTrip={addParticipantToTrip} /> : <Navigate to="/login" />}
       />
       <Route path="*" element={<Navigate to={session ? "/dashboard" : "/"} />} />
     </Routes>
@@ -115,6 +116,10 @@ function App() {
 
         // Combine both arrays
         const allAccessibleTrips = [...(createdTrips || []), ...participantTrips];
+        
+        // Check for any trips where the user was invited and update their status to active
+        await updateInvitedParticipantStatus(allAccessibleTrips);
+        
         setTrips(allAccessibleTrips as Trip[]);
       } catch (error) {
         console.error('Error fetching trips:', error);
@@ -123,6 +128,39 @@ function App() {
 
     fetchTrips();
   }, [session]);
+
+  const updateInvitedParticipantStatus = async (trips: any[]) => {
+    if (!session?.user?.email) return;
+
+    for (const trip of trips) {
+      const participants = trip.participants || [];
+      let hasUpdates = false;
+      
+      const updatedParticipants = participants.map((p: any) => {
+        if (p.email?.toLowerCase() === session.user.email.toLowerCase() && p.status === 'invited') {
+          hasUpdates = true;
+          return {
+            ...p,
+            id: session.user.id,
+            name: session.user.email.split('@')[0],
+            status: 'active'
+          };
+        }
+        return p;
+      });
+
+      if (hasUpdates) {
+        try {
+          await supabase
+            .from('trips')
+            .update({ participants: updatedParticipants })
+            .eq('id', trip.id);
+        } catch (error) {
+          console.error('Error updating participant status:', error);
+        }
+      }
+    }
+  };
 
   const addTrip = useCallback(async (newTripData: any): Promise<string> => {
     if (!session) throw new Error("User is not authenticated");
@@ -198,6 +236,80 @@ function App() {
     setTrips(currentTrips => currentTrips.map(trip => trip.id === id ? updatedTrip : trip));
   }, []);
 
+  const addParticipantToTrip = useCallback(async (tripId: string, email: string): Promise<{ success: boolean; message: string; isNewUser: boolean }> => {
+    if (!session) throw new Error("User is not authenticated");
+    
+    const trip = trips.find(t => t.id === tripId);
+    if (!trip) {
+      throw new Error("Trip not found");
+    }
+    
+    // Check if user has permission to add participants
+    const isCreator = trip.user_id === session.user.id;
+    const isActiveParticipant = (trip.participants || []).some((p: any) => 
+      p.email && p.email.toLowerCase() === session.user.email.toLowerCase() && p.status === 'active'
+    );
+    
+    if (!isCreator && !isActiveParticipant) {
+      throw new Error("You don't have permission to add participants to this trip");
+    }
+    
+    // Check if participant already exists in the trip
+    const existingParticipant = (trip.participants || []).find((p: any) => 
+      p.email && p.email.toLowerCase() === email.toLowerCase()
+    );
+    
+    if (existingParticipant) {
+      return { 
+        success: false, 
+        message: "This person is already part of the trip", 
+        isNewUser: false 
+      };
+    }
+    
+    // Check if the email belongs to an existing user
+    const { data: existingUsers, error: userError } = await supabase
+      .from('users')
+      .select('id, email')
+      .eq('email', email.toLowerCase())
+      .limit(1);
+    
+    if (userError) {
+      console.error('Error checking for existing user:', userError);
+    }
+    
+    const existingUser = existingUsers && existingUsers.length > 0 ? existingUsers[0] : null;
+    
+    // Create participant object
+    const newParticipant = existingUser 
+      ? {
+          id: existingUser.id,
+          email: email.toLowerCase(),
+          name: email.split('@')[0],
+          status: 'active' as const
+        }
+      : {
+          email: email.toLowerCase(),
+          name: email.split('@')[0],
+          status: 'invited' as const
+        };
+    
+    // Update the trip with the new participant
+    const updatedParticipants = [...(trip.participants || []), newParticipant];
+    const updatedTrip = { ...trip, participants: updatedParticipants };
+    
+    await updateTrip(updatedTrip);
+    
+    const message = existingUser 
+      ? `${email} has been added to the trip!`
+      : `${email} has been invited to the trip! They'll automatically get access when they sign up.`;
+    
+    return { 
+      success: true, 
+      message, 
+      isNewUser: !existingUser 
+    };
+  }, [session, trips, updateTrip]);
   const deleteTrip = useCallback(async (tripId: string) => {
     if (!session) throw new Error("User is not authenticated");
     
@@ -233,6 +345,7 @@ function App() {
           isLoading={isLoading}
           addTrip={addTrip}
           updateTrip={updateTrip}
+          addParticipantToTrip={addParticipantToTrip}
           deleteTrip={deleteTrip}
         />
       </div>

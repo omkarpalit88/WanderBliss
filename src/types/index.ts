@@ -4,6 +4,13 @@ export interface User {
   email: string;
 }
 
+export interface Participant {
+  id?: string;
+  email: string;
+  name?: string;
+  status: 'active' | 'invited';
+}
+
 export interface Settlement {
   id: string;
   from: string;
@@ -65,7 +72,7 @@ export interface Trip {
   id: string;
   name: string;
   description: string;
-  participants: User[];
+  participants: Participant[];
   createdBy: string;
   createdAt: Date;
   expenses: Expense[];

@@ -150,7 +150,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, se
     }
     
     const isParticipant = (trip.participants || []).some((p: any) => 
-      p.email && p.email.toLowerCase() === session.user.email.toLowerCase()
+      p.email && p.email.toLowerCase() === session.user.email.toLowerCase() && p.status === 'active'
     );
     return isParticipant ? 'Participant' : null;
   };
@@ -159,7 +159,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, se
     if (!session?.user) return false;
     const isCreator = trip.user_id === session.user.id;
     const isParticipant = (trip.participants || []).some((p: any) => 
-      p.email && p.email.toLowerCase() === session.user.email.toLowerCase()
+      p.email && p.email.toLowerCase() === session.user.email.toLowerCase() && p.status === 'active'
     );
     return isCreator || isParticipant;
   };
@@ -297,7 +297,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip, se
                         </span>
                         {(trip.participants || []).length > 0 && (
                           <span className="text-xs text-gray-500">
-                            {(trip.participants || []).length} participant{(trip.participants || []).length !== 1 ? 's' : ''}
+                            {(trip.participants || []).filter((p: any) => p.status === 'active').length} active, {(trip.participants || []).filter((p: any) => p.status === 'invited').length} invited
                           </span>
                         )}
                       </div>
