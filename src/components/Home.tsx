@@ -1,24 +1,32 @@
 // src/components/Home.tsx
 import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Globe, PlusCircle, ArrowLeft, UserCircle, LogOut } from 'lucide-react';
-
-// --- MOCK DATA: In a real app, this would come from your auth context ---
-const mockUser = {
-  name: 'Omi',
-};
+import { supabase } from '../supabase';
 
 interface HomeProps {
   addTrip: (newTrip: any) => Promise<string>;
+  currentUserEmail?: string;
+  session?: any;
 }
 
-const Home: React.FC<HomeProps> = ({ addTrip }) => {
+const Home: React.FC<HomeProps> = ({ addTrip, currentUserEmail, session }) => {
   const [destination, setDestination] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
+  const [userName, setUserName] = useState('User');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (session?.user?.email) {
+      // Extract name from email or use a default
+      const emailName = session.user.email.split('@')[0];
+      setUserName(emailName.charAt(0).toUpperCase() + emailName.slice(1));
+    }
+  }, [session]);
 
   const handleCreateTrip = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +76,7 @@ const Home: React.FC<HomeProps> = ({ addTrip }) => {
   };
   
   const handleLogout = () => {
-    console.log("Logout clicked");
+    supabase.auth.signOut();
   };
 
   const colors = {
@@ -88,7 +96,8 @@ const Home: React.FC<HomeProps> = ({ addTrip }) => {
           </h1>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="font-semibold" style={{color: colors.darkText}}>Welcome, {mockUser.name}!</p>
+              <p className="font-semibold" style={{color: colors.darkText}}>Welcome, {userName}!</p>
+              <p className="text-xs text-gray-500">{session?.user?.email}</p>
             </div>
             <UserCircle size={32} className="text-gray-400" />
             <button onClick={handleLogout} className="p-2 text-gray-500 hover:text-red-600" aria-label="Logout">

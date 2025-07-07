@@ -46,7 +46,7 @@ const AppContent = ({ session, trips, isLoading, addTrip, updateTrip, deleteTrip
       />
       <Route
         path="/create-trip"
-        element={session ? <Home addTrip={addTrip} currentUserEmail={session.user.email} /> : <Navigate to="/login" />}
+        element={session ? <Home addTrip={addTrip} currentUserEmail={session.user.email} session={session} /> : <Navigate to="/login" />}
       />
       <Route
         path="/trip-planner/:tripId"
