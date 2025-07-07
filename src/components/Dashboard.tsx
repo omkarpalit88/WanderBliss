@@ -1,12 +1,14 @@
 // src/components/Dashboard.tsx
 import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronRight, Sun, Trash2, UserCircle, LogOut, Calendar } from 'lucide-react';
+import { Plus, ChevronRight, Sun, Trash2, UserCircle, LogOut, Calendar, Edit2, Check, X } from 'lucide-react';
 import { Trip } from '../types';
 
 interface DashboardProps {
   trips: Trip[];
   deleteTrip: (tripId: string) => Promise<void>;
+  updateTrip?: (updatedTrip: Trip) => Promise<void>;
 }
 
 // --- MOCK DATA: In a real app, this would come from your auth context ---
@@ -16,8 +18,10 @@ const mockUser = {
   // avatarUrl: 'https://...
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
+const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip, updateTrip }) => {
   const navigate = useNavigate();
+  const [editingTripId, setEditingTripId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
   const handleCreateTrip = () => {
     navigate('/create-trip');
@@ -45,6 +49,34 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
     }
   };
 
+  const handleEditClick = (e: React.MouseEvent, trip: Trip) => {
+    e.stopPropagation();
+    setEditingTripId(trip.id);
+    setEditingName(trip.name);
+  };
+
+  const handleSaveName = async (e: React.MouseEvent, tripId: string) => {
+    e.stopPropagation();
+    if (!updateTrip) return;
+    
+    const trip = trips.find(t => t.id === tripId);
+    if (!trip || !editingName.trim()) return;
+    
+    try {
+      await updateTrip({ ...trip, name: editingName.trim() });
+      setEditingTripId(null);
+      setEditingName('');
+    } catch (error) {
+      console.error("Failed to update trip name:", error);
+      alert("Could not update the trip name. Please try again.");
+    }
+  };
+
+  const handleCancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTripId(null);
+    setEditingName('');
+  };
   const formatCreatedDate = (trip: any) => {
     // Handle both database field name (created_at) and frontend field name (createdAt)
     const dateValue = trip.created_at || trip.createdAt;
@@ -163,7 +195,49 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
                   className="bg-white p-5 rounded-xl shadow-sm hover:shadow-lg transition-all cursor-pointer flex justify-between items-center group"
                 >
                   <div>
-                    <h3 className="text-xl font-semibold" style={{ color: colors.darkText }}>{trip.name}</h3>
+                    <div className="flex items-center gap-2 mb-2">
+                      {editingTripId === trip.id ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-xl font-semibold bg-transparent border-b-2 border-orange-500 outline-none flex-1"
+                            style={{ color: colors.darkText }}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveName(e as any, trip.id);
+                              if (e.key === 'Escape') handleCancelEdit(e as any);
+                            }}
+                          />
+                          <button
+                            onClick={(e) => handleSaveName(e, trip.id)}
+                            className="p-1 text-green-600 hover:bg-green-50 rounded"
+                          >
+                            <Check size={16} />
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded"
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-1">
+                          <h3 className="text-xl font-semibold" style={{ color: colors.darkText }}>
+                            {trip.name}
+                          </h3>
+                          <button
+                            onClick={(e) => handleEditClick(e, trip)}
+                            className="p-1 text-gray-400 hover:text-orange-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <div className="space-y-1">
                       {formatTripDates(trip) && (
                         <p className="text-sm font-medium text-gray-700 flex items-center">
@@ -179,7 +253,7 @@ const Dashboard: React.FC<DashboardProps> = ({ trips, deleteTrip }) => {
                   <div className="flex items-center">
                     <button
                       onClick={(e) => handleDeleteClick(e, trip.id)}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-opacity opacity-0 group-hover:opacity-100"
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-opacity opacity-0 group-hover:opacity-100 mr-2"
                       aria-label="Delete trip"
                     >
                       <Trash2 size={18} />
