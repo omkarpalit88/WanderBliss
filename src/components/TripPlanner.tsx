@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckSquare, Plane, Hotel, IndianRupee, Globe, Wand2, Plus, RefreshCw, Calendar, Edit, Save, Train, Car, BusFront, Trash2, Building2, Users2 } from 'lucide-react';
+import { ArrowLeft, CheckSquare, Plane, Hotel, IndianRupee, Globe, Wand2, Plus, RefreshCw, Calendar, Edit, Save, Train, Car, BusFront, Trash2, Building2, Users2, ClipboardList } from 'lucide-react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Trip, ItineraryItem, TravelLeg, LodgingEntry, Expense, Settlement, User as UserType, TodoItem } from '../types';
